@@ -82,7 +82,7 @@ def fn(src, key='', dct={}):  # src = {'a':{'b':1,'c':2},'d':{'e':3,'f':{'g':4}}
 # print(dst)
 
 
-def getLeafNodesLevel(baseDir, subNodeID):
+def getLeafNodesLevelAndMaxError(baseDir, subNodeID):
     leafDir = os.path.join(baseDir, subNodeID)
     with open(os.path.join(leafDir, '3dNodeIndexDocument.json'), 'r', encoding='utf-8') as f:
         subData = f.read()

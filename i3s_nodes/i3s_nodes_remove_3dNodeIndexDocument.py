@@ -1,8 +1,11 @@
 import os
 
-dir = r'E:\slpk\Rancho_Mesh_v17_2\nodes'
+dir = r'E:\slpk\max\nodes'
 dirList = os.listdir(dir)
 for each in dirList:
-    nodeDir = os.path.join(dir, each, '3dNodeIndexDocument.json')
-    os.remove(nodeDir)
+    try:
+        nodeDir = os.path.join(dir, each, '3dNodeIndexDocument.json')
+        os.remove(nodeDir)
+    except:
+        pass
 

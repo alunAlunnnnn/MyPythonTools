@@ -1,4 +1,5 @@
 import arcpy
+from numba import jit
 
 arcpy.env.overwriteOutput = True
 
@@ -55,6 +56,7 @@ def addField(inFC, fieldName, fieldType):
 
 
 # get all attributes from feature class
+@jit(nopython=True)
 def getAttrFromFC(inFC):
     global fieldList, fieldTypeList
 
@@ -120,6 +122,7 @@ def getAttrFromFC(inFC):
 
 
 # save fields value to target feature
+@jit(nopython=True)
 def saveFieldsValue(targetFC, valueDict, tolerance):
     global fieldList, fieldTypeList
 
