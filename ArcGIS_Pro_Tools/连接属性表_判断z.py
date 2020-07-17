@@ -244,17 +244,10 @@ fieldTypeList = []
 # delTempField = arcpy.GetParameterAsText(3)
 # durePolyline = arcpy.GetParameterAsText(4)
 
-# inFC = arcpy.GetParameterAsText(0)
-# targetFC = arcpy.GetParameterAsText(1)
-# tolerance = arcpy.GetParameterAsText(2)
-# delTempField = arcpy.GetParameterAsText(3)
-# durePolyline = arcpy.GetParameterAsText(4)
-
-
-inFC = r'D:\二维数据'
-targetFC = r'D:\三维数据'
-tolerance = '0.01'
-delTempField = 'false'
-durePolyline = 'false'
+inFC = arcpy.GetParameterAsText(0)
+targetFC = arcpy.GetParameterAsText(1)
+tolerance = arcpy.GetParameterAsText(2)
+delTempField = arcpy.GetParameterAsText(3)
+durePolyline = arcpy.GetParameterAsText(4)
 
 Main(inFC, targetFC, tolerance)
