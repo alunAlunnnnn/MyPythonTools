@@ -74,10 +74,20 @@ def FCFieldValueMatchCheck(src, dst):
     return dstDict
 
 
-# src = r'E:\松江管廊\统一sde与原数据的objectid\污水三维管线.gdb\PS_84P_ALLv2'
-# dst = r'E:\松江管廊\统一sde与原数据的objectid\污水三维管线.gdb\PS_84P'
-src = r'E:\温州污水\点位位置更新_20200630\result.gdb\PS84_P'
-dst = r'E:\温州污水\点位位置更新_20200630\result.gdb\PS_84P_3Dv2'
-res = FCFieldValueMatchCheck(src, dst)
-with open(r'E:\温州污水\点位位置更新_20200630\PS84_P.txt', 'w', encoding='utf-8') as f:
-    f.write(str(res))
+src = arcpy.GetParameterAsText(0)
+dst = arcpy.GetParameterAsText(1)
+outLog = arcpy.GetParameterAsText(2)
+try:
+    res = FCFieldValueMatchCheck(src, dst)
+
+    if outLog[-4:] != '.txt':
+        outLog = outLog[:-4] + '.txt'
+
+    with open(outLog, 'w', encoding='utf-8') as f:
+        f.write(str(res))
+
+except KeyError:
+    arcpy.AddWarning('ERROR --- the number of rows between input data1 and data2 is not euqal, processing is closing')
+    arcpy.AddWarning('ERROR --- please make sure that, the number of rows between two data is equal')
+
+
