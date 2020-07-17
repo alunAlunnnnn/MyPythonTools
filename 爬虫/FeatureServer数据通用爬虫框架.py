@@ -104,12 +104,10 @@ inField = ['SHAPE@', 'OBJECTID_1', 'OBJECTID', 'ENTIID', 'NAME', 'ENTICLASSI', '
 i = 9503
 a = True
 # with open(r'E:\长江镇数据爬取\plg.txt', 'w', encoding='utf-8') as f:
-f = open(r'E:\长江镇数据爬取\plg.txt', 'w', encoding='utf-8')
+f = open(r'E:\长江镇数据爬取\plg_test.txt', 'w', encoding='utf-8')
 with arcpy.da.InsertCursor(data, inField) as cur:
-    dataList = []
     # while a:
     while i <= 10000:
-    # while i < 3000:
         time.sleep(1)
         baseurl = 'http://geowork.wicp.vip:25081/arcgis/rest/services/rugao/rugaocjz/FeatureServer/0/query?where=OBJECTID_1%3E%3D{}+AND+OBJECTID_1%3C{}&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&f=json'.format(i, i+999)
 
@@ -138,12 +136,11 @@ with arcpy.da.InsertCursor(data, inField) as cur:
                 # print([eachPnt for eachPnt in eachPlg])
 
                 # ERROR --- here , create empty geometry with arcpy.Polygon()
-                # insertFc = arcpy.Polygon(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPlg]))
+                insertFc = arcpy.Polygon(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPlg]))
                 print([tuple(eachPnt) for eachPnt in eachPlg])
 
                 # it is work use a list of coord tuple without arcpy.Polygon
-                insertFc = [tuple(eachPnt) for eachPnt in eachPlg]
-                dataList.append(insertFc)
+                # insertFc = [tuple(eachPnt) for eachPnt in eachPlg]
             fcList = [insertFc]
 
             # set attributes
