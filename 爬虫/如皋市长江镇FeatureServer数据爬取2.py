@@ -93,7 +93,7 @@ def CreateFeatureClass(outputPath, outputName):
     return inFC
 
 outputPath = r'E:\长江镇数据爬取\长江镇数据创建'
-outputName = 'cjz_FeaSer_test'
+outputName = 'cjz_FeaSer_test_plgAPI'
 
 data = CreateFeatureClass(outputPath, outputName)
 
@@ -120,7 +120,9 @@ with arcpy.da.InsertCursor(data, inField) as cur:
         #     'layerDefs': [{'layerId': 0, 'where': '1=1', 'outFields': '*'}],
         #     }
 
-        res = requests.get(baseurl)
+        ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
+
+        res = requests.get(baseurl, headers={'User-Agent': ua})
 
         print(res.text)
         jsonData = json.loads(res.text)

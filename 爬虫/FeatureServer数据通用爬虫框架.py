@@ -93,7 +93,7 @@ def CreateFeatureClass(outputPath, outputName):
     return inFC
 
 outputPath = r'E:\长江镇数据爬取\长江镇数据创建'
-outputName = 'cjz_FeaSer_test'
+outputName = 'cjz_FeaSer_test_post'
 
 data = CreateFeatureClass(outputPath, outputName)
 
@@ -104,21 +104,33 @@ inField = ['SHAPE@', 'OBJECTID_1', 'OBJECTID', 'ENTIID', 'NAME', 'ENTICLASSI', '
 i = 9503
 a = True
 # with open(r'E:\长江镇数据爬取\plg.txt', 'w', encoding='utf-8') as f:
-f = open(r'E:\长江镇数据爬取\plg_test.txt', 'w', encoding='utf-8')
+f = open(r'E:\长江镇数据爬取\plg_test_post.txt', 'w', encoding='utf-8')
 with arcpy.da.InsertCursor(data, inField) as cur:
+    sr = arcpy.SpatialReference(4326)
     # while a:
     while i <= 10000:
         time.sleep(1)
-        baseurl = 'http://geowork.wicp.vip:25081/arcgis/rest/services/rugao/rugaocjz/FeatureServer/0/query?where=OBJECTID_1%3E%3D{}+AND+OBJECTID_1%3C{}&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&f=json'.format(i, i+999)
+        # baseurl = 'http://geowork.wicp.vip:25081/arcgis/rest/services/rugao/rugaocjz/FeatureServer/0/query?where=OBJECTID_1%3E%3D{}+AND+OBJECTID_1%3C{}&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&f=json'.format(i, i+999)
+        baseurl = 'http://geowork.wicp.vip:25081/arcgis/rest/services/rugao/rugaocjz/FeatureServer/0/query'
 
         i += 999
 
-        # para = {
-        #     'f': 'json',
-        #     'layerDefs': [{'layerId': 0, 'where': '1=1', 'outFields': '*'}],
-        #     }
+        ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
 
-        res = requests.get(baseurl)
+        para = {
+            'f': 'json',
+            'where': 'OBJECTID_1 >= %s AND OBJECTID_1 <= %s' % (i, i + 999),
+            'geometryType': 'esriGeometryEnvelope',
+            'spatialRel': 'esriSpatialRelIntersects',
+            'units': 'esriSRUnit_Foot',
+            'outFields': '*',
+            'returnGeometry': 'true',
+            'returnDistinctValues': 'false',
+            'returnIdsOnly': 'false',
+            'returnCountOnly': 'false'
+            }
+
+        res = requests.get(baseurl, headers={'User-Agent': ua}, params=para)
 
         print(res.text)
         jsonData = json.loads(res.text)
@@ -136,8 +148,13 @@ with arcpy.da.InsertCursor(data, inField) as cur:
                 # print([eachPnt for eachPnt in eachPlg])
 
                 # ERROR --- here , create empty geometry with arcpy.Polygon()
-                insertFc = arcpy.Polygon(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPlg]))
-                print([tuple(eachPnt) for eachPnt in eachPlg])
+                # print(eachPlg)
+                insertFc = arcpy.Polygon(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPlg]), sr)
+                # insertFc = arcpy.Polygon(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPlg]))
+                # plg = insertFc[0]
+                print(insertFc.area)
+                # print(insertFc.lastPoint)
+                # print([tuple(eachPnt) for eachPnt in eachPlg])
 
                 # it is work use a list of coord tuple without arcpy.Polygon
                 # insertFc = [tuple(eachPnt) for eachPnt in eachPlg]
