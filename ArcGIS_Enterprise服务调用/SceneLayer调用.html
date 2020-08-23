@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>长江镇测试</title>
+    <style>
+        #myMap{
+            height: 600px;
+            width: 800px;
+            border: black 1px solid;
+        }
+
+
+    </style>
+    <link
+            href="http://localhost/arcgis_js_v415_sdk/arcgis_js_api/library/4.15/esri/css/main.css"
+            rel="stylesheet"
+            type="text/css"
+    />
+    <script src="http://localhost/arcgis_js_v415_sdk/arcgis_js_api/library/4.15/init.js"></script>
+
+    <script>
+    require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/TileLayer",
+        "esri/widgets/LayerList",
+        "esri/widgets/Legend",
+        "esri/Color",
+        "esri/geometry/SpatialReference",
+        "esri/layers/MapImageLayer",
+        "esri/layers/SceneLayer",
+        // "dojo/domReady!"
+        ], function(Map, SceneView,TileLayer,LayerList,Legend,Color,SpatialReference, MapImageLayer, SceneLayer) {
+
+        var myMap = new Map({
+
+        });
+
+        // var sr1 = new SpatialReference({ wkid: 4326 });
+        // var sr1 = new SpatialReference({ wkid: 4490 });
+        var sr1 = new SpatialReference({ wkid: 102100 });
+
+        var view = new SceneView({
+            container: "myMap",
+            map: myMap,
+            viewingMode: "local",
+            spatialReference: sr1,
+            // center: [13516320.621, 3639432.974399999],
+            // zoom: 14
+        });
+
+        // ScenenLayer调用
+        var layer = new SceneLayer({
+        // URL to the service
+        url: "http://192.168.2.241/server/rest/services/Hosted/LX_UNDERGROUND_PIPE/SceneServer"
+        });
+
+
+        // MapImageLayer、TileLayer调用
+        // var layer = null;
+        // // layerUrl = "http://192.168.2.242/server/rest/services/RGCJ/RG_ECONOMICS_A/MapServer";
+
+        // // layer = new TileLayer(layerUrl, null);
+        // // layer = new MapImageLayer(layerUrl);
+
+        // var color = new Color("green");
+
+        myMap.add(layer);
+
+        myMap.ground = {
+            opacity: 0,
+            // surfaceColor :color,
+            navigationConstraint: "none"
+        }
+
+        var layerlist = new LayerList({
+            view: view
+            });
+        var legend = new Legend({
+            view: view
+            // layerInfos: [{
+            //   layer: featureLayer,
+            //   title: "Legend"
+            // }]
+        });
+
+        view.ui.add(legend, "bottom-left");
+
+
+        view.ui.add(layerlist, {
+            position: "top-right"
+        });
+
+        // 绑定事件，点击console坐标值
+        view.on("click", function(evt) {
+		var pnt = evt.mapPoint;
+        console.log(pnt.x+","+pnt.y);
+});
+
+});
+
+    </script>
+</head>
+<body>
+<div id="myMap"></div>
+
+</body>
+</html>
