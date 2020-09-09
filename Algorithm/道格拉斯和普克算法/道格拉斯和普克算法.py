@@ -574,13 +574,7 @@ def DP(pntList, tolerance):
             maxDis = dis
             maxDisPntIndex = i
 
-    list1 = pntList[:maxDisPntIndex + 1]
-    list2 = pntList[maxDisPntIndex:]
 
-    # 清除小距离点
-    for each in delList:
-        if each < maxDisPntIndex:
-            list1.pop(each)
 
     # 找到距离最远的点，将线拆分为两条
 
