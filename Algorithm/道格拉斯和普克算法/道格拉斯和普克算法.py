@@ -547,36 +547,51 @@ def DP(pntList, tolerance):
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
     """
+    global resList
+    if len(pntList) > 2:
 
-    x_f, y_f, z_f = (pntList[0])
-    x_l, y_l, z_l = (pntList[-1])
-    ext = (min(x_f, x_l), min(y_f, y_l), max(x_f, x_l), max(y_f, y_l))
+        x_f, y_f, z_f = (pntList[0])
+        x_l, y_l, z_l = (pntList[-1])
+        ext = (min(x_f, x_l), min(y_f, y_l), max(x_f, x_l), max(y_f, y_l))
 
-    # 实例化起点到终点的线
-    line = lineEquation((x_f, y_f, z_f), (x_l, y_l, z_l), ext)
+        # 实例化起点到终点的线
+        line = lineEquation((x_f, y_f, z_f), (x_l, y_l, z_l), ext)
 
-    # 获取每个点到线的距离
-    pntNum = len(pntList)
+        # 获取每个点到线的距离
+        pntNum = len(pntList)
 
-    maxDis = 0
-    maxDisRowIndex = 0
-    delList = []
-    for i in range(1, pntNum - 1):
-        x, y, z = (pntList[i])
-        dis = line.calDisFromPnt((x, y, z))
-        # 筛出点到线距离小于容差的点集
-        if dis < tolerance:
-            # 遍历结束后，将此列表中的所有点位全部清除
-            delList.append(i)
-            continue
+        for eachPnt in pntList[1:-1]:
+            x, y, z = eachPnt
+            dis = line.calDisFromPnt((x, y, z))
+            # 筛出点到线距离小于容差的点集
+            if dis < tolerance:
+                # 遍历结束后，将此列表中的所有点位全部清除
+                pntList.remove(eachPnt)
 
-        if dis > maxDis:
-            maxDis = dis
-            maxDisPntIndex = i
+        maxDis = 0
+        maxDisPntIndex = 0
+        for i, eachPnt in enumerate(pntList[1:-1]):
+            x, y, z = eachPnt
+            dis = line.calDisFromPnt((x, y, z))
+            if dis > maxDis:
+                maxDis = dis
+                maxDisPntIndex = i
+
+        # 找到距离最远的点，将线拆分为两条
+        pntList1 = pntList[:i + 1]
+        pntList2 = pntList[i:]
+        if len(pntList1) > 2:
+            DP(pntList1, tolerance)
+        else:
+            if len(pntList2) > 2:
+                DP(pntList2, tolerance)
+            else:
+                return resList + pntList
+
+    else:
+        return resList + pntList
 
 
-
-    # 找到距离最远的点，将线拆分为两条
 
     # todo 划分哪些点与哪段线比较
 
@@ -589,5 +604,7 @@ def main(inFC, outxlsx, tolerance):
 data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
 outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
 tolerance = 1
+resList = []
+
 
 main(data, outxlsx, tolerance)
