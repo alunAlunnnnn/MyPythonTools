@@ -4,9 +4,10 @@ import arcpy
 import openpyxl
 import functools
 import datetime
+import sys
 
 arcpy.env.overwriteOutput = True
-
+sys.setrecursionlimit(100000)
 
 # ---------- line class ----------
 # ---------- show message in toolbox ----------
@@ -412,7 +413,9 @@ class lineEquation:
             calX = self.extent_xmin
             calY = k * calX + b
 
-            newlineObj = lineEquation(calX, calY, z)
+            ext = (min(x, calX), min(y, calY), max(x, calX), max(y, calY))
+
+            newlineObj = lineEquation((x, y, z), (calX, calY, z), ext)
             interX, interY = self.calculateIntersect(newlineObj)
             dis = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
 
@@ -508,11 +511,6 @@ def featureAttrToXlsx(inFC, outxlsx):
                     sht.cell(rowNum, colNum).value = data
                 except:
                     sht.cell(rowNum, colNum).value = str(data)
-
-    print(sht.max_row)
-    sht.delete_rows(1, 500)
-    print(sht.max_row)
-
     wb.save(outxlsx)
 
 
@@ -536,13 +534,14 @@ def readDataFromXlsx(inxlsx):
         if i == 1:
             continue
 
-        x, y, z = eachRow[index_x], eachRow[index_y], eachRow[index_z]
+        x, y, z = eachRow[index_x].value, eachRow[index_y].value, eachRow[index_z].value
         resList.append((x, y, z))
 
     return resList
 
 
 def DP(pntList, tolerance):
+    print(pntList)
     """
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
@@ -578,33 +577,34 @@ def DP(pntList, tolerance):
                 maxDisPntIndex = i
 
         # 找到距离最远的点，将线拆分为两条
-        pntList1 = pntList[:i + 1]
-        pntList2 = pntList[i:]
+        pntList1 = pntList[:maxDisPntIndex + 1]
+        pntList2 = pntList[maxDisPntIndex:]
         if len(pntList1) > 2:
             DP(pntList1, tolerance)
         else:
             if len(pntList2) > 2:
                 DP(pntList2, tolerance)
             else:
-                return resList + pntList
-
+                resList = resList + pntList1 + pntList2
+                return resList
     else:
-        return resList + pntList
+        resList = resList + pntList
+        return resList
 
-
-
-    # todo 划分哪些点与哪段线比较
 
 
 @getRunTime
 def main(inFC, outxlsx, tolerance):
     featureAttrToXlsx(inFC, outxlsx)
+    pntList = readDataFromXlsx(outxlsx)
+    DP(pntList, tolerance)
 
 
 data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
 outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
-tolerance = 1
+tolerance = 0.000000001
 resList = []
 
-
 main(data, outxlsx, tolerance)
+
+print(resList)
