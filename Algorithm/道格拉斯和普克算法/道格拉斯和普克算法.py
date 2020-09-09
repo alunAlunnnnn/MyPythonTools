@@ -582,11 +582,14 @@ def DP(pntList, tolerance):
         if len(pntList1) > 2:
             DP(pntList1, tolerance)
         else:
-            if len(pntList2) > 2:
-                DP(pntList2, tolerance)
-            else:
-                resList = resList + pntList1 + pntList2
-                return resList
+            resList = resList + pntList1
+            return resList
+
+        if len(pntList2) > 2:
+            DP(pntList2, tolerance)
+        else:
+            resList = resList + pntList2
+            return resList
     else:
         resList = resList + pntList
         return resList
@@ -602,7 +605,7 @@ def main(inFC, outxlsx, tolerance):
 
 data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
 outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
-tolerance = 0.000000001
+tolerance = 0.0000000000001
 resList = []
 
 main(data, outxlsx, tolerance)
