@@ -5,9 +5,11 @@ import openpyxl
 import functools
 import datetime
 import sys
+import sqlite3
 
 arcpy.env.overwriteOutput = True
 sys.setrecursionlimit(100000)
+
 
 # ---------- line class ----------
 # ---------- show message in toolbox ----------
@@ -535,9 +537,31 @@ def readDataFromXlsx(inxlsx):
             continue
 
         x, y, z = eachRow[index_x].value, eachRow[index_y].value, eachRow[index_z].value
-        resList.append((x, y, z))
+        resList.append([x, y, z])
 
     return resList
+
+
+def writeDataToDB(pntList, db, table):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+    c.execute(f"DROP TABLE IF EXISTS {table}")
+    c.execute(f"CREATE TABLE IF NOT EXISTS {table}(X real, Y real, Z real); ")
+    c.executemany("INSERT INTO pntcoord VALUES(?, ?, ?);", pntList)
+
+    conn.commit()
+    conn.close()
+
+    return db
+
+
+def readDataFromDB(db, table):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+    data = c.execute(f"SELECT * FROM {table}").fetchall()
+    print("db data is : ", data)
+
+    return data
 
 
 def DP(pntList, tolerance):
@@ -595,19 +619,22 @@ def DP(pntList, tolerance):
         return resList
 
 
-
 @getRunTime
-def main(inFC, outxlsx, tolerance):
+def main(inFC, outxlsx, tolerance, outdb, table):
     featureAttrToXlsx(inFC, outxlsx)
     pntList = readDataFromXlsx(outxlsx)
-    DP(pntList, tolerance)
+    writeDataToDB(pntList, outdb, table)
+    pntDataList = readDataFromDB(outdb, table)
+    DP(pntDataList, tolerance)
 
 
 data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
 outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
+outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
+table = "pntcoord"
 tolerance = 0.0000000000001
 resList = []
 
-main(data, outxlsx, tolerance)
+main(data, outxlsx, tolerance, outdb, table)
 
 print(resList)
