@@ -1,3 +1,10 @@
+import logging
+
+logs = r"E:\GIS算法\道格拉斯和普克算法\测试数据\log\log.txt"
+logging.basicConfig(filename=logs, filemode="w",
+                    format="%(levelname)s --- %(asctime)s --- %(message)s",
+                    level=logging.DEBUG)
+
 import math
 import os
 import arcpy
@@ -6,6 +13,8 @@ import functools
 import datetime
 import sys
 import sqlite3
+
+logging.debug("All module needed have imported successfully")
 
 arcpy.env.overwriteOutput = True
 sys.setrecursionlimit(100000)
@@ -543,11 +552,12 @@ def readDataFromXlsx(inxlsx):
 
 
 def writeDataToDB(pntList, db, table):
+    print("input", pntList)
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    c.execute(f"DROP TABLE IF EXISTS {table}")
+    c.execute(f"DROP TABLE IF EXISTS {table};")
     c.execute(f"CREATE TABLE IF NOT EXISTS {table}(X real, Y real, Z real); ")
-    c.executemany("INSERT INTO pntcoord VALUES(?, ?, ?);", pntList)
+    c.executemany(f"INSERT INTO {table} VALUES(?, ?, ?);", pntList)
 
     conn.commit()
     conn.close()
@@ -565,7 +575,7 @@ def readDataFromDB(db, table):
 
 
 def DP(pntList, tolerance):
-    print(pntList)
+    # print(pntList)
     """
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
@@ -598,43 +608,90 @@ def DP(pntList, tolerance):
             dis = line.calDisFromPnt((x, y, z))
             if dis > maxDis:
                 maxDis = dis
-                maxDisPntIndex = i
+                maxDisPntIndex = i + 1
 
         # 找到距离最远的点，将线拆分为两条
         pntList1 = pntList[:maxDisPntIndex + 1]
         pntList2 = pntList[maxDisPntIndex:]
-        if len(pntList1) > 2:
+        if len(pntList1) > 2 and len(pntList2) > 2:
             DP(pntList1, tolerance)
+            DP(pntList2, tolerance)
+        elif len(pntList1) > 2 and len(pntList2) <= 2:
+            DP(pntList1, tolerance)
+        elif len(pntList2) > 2 and len(pntList1) <= 2:
+            DP(pntList2, tolerance)
         else:
             resList = resList + pntList1
             return resList
 
-        if len(pntList2) > 2:
-            DP(pntList2, tolerance)
-        else:
-            resList = resList + pntList2
-            return resList
+        # if len(pntList2) > 2:
+        #     DP(pntList2, tolerance)
+        # else:
+        #     resList = resList + pntList2
+        #     return resList
     else:
         resList = resList + pntList
         return resList
 
 
+def createLineFC(pntList, outputData):
+    data = [pntList]
+    fcList = []
+    for each in data:
+        fc = arcpy.Polyline(arcpy.Array([arcpy.Point(*coord) for coord in each]))
+        fcList.append(fc)
+
+    arcpy.CopyFeatures_management(fcList, outputData)
+
+
 @getRunTime
-def main(inFC, outxlsx, tolerance, outdb, table):
+def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
+    global resList
+    logging.debug("Script start running")
+    logging.debug("Step1 --- Write points coord information to xlsx\n")
+
     featureAttrToXlsx(inFC, outxlsx)
+
+    logging.debug("Step2 --- Read points coord information from xlsx")
+
     pntList = readDataFromXlsx(outxlsx)
+
+    logging.debug(f"Points coord information is {pntList}\n")
+    logging.debug("Step3 --- Write points coord information to sqlite3 database\n")
+
     writeDataToDB(pntList, outdb, table)
+
+    logging.debug("Step4 --- Read points coord information from sqlite3 database\n")
     pntDataList = readDataFromDB(outdb, table)
+
+    logging.debug(f"Points coord information is {pntDataList}\n")
+    logging.debug("Step5 --- Process points with Douglas–Peucker algorithm")
+
     DP(pntDataList, tolerance)
 
+    logging.debug(f"The result of points with DP algorithm are {resList}\n")
+    logging.debug("Step6 --- Create line feature class")
 
-data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
-outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
-outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-table = "pntcoord"
-tolerance = 0.0000000000001
+    createLineFC(resList, outputFC)
+
+    logging.debug("Step7 --- Process finish")
+
+
+# 内置参数
 resList = []
 
-main(data, outxlsx, tolerance, outdb, table)
+# 传参
+# data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
+# table = "pntcoord"
+# outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res.shp"
 
-print(resList)
+data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点_pcs.shp"
+outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
+outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
+table = "pntcoord_pcs"
+tolerance = 0.000000000000001
+outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res_pcs.shp"
+
+if __name__ == "__main__":
+    main(data, outxlsx, tolerance, outdb, table, outputFC)
+    print(resList)
