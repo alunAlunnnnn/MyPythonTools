@@ -8,8 +8,6 @@ logging.basicConfig(filename=logs, filemode="w",
 try:
     import math
     import os
-    import arcpy
-    import openpyxl
     import functools
     import datetime
     import sys
@@ -20,26 +18,7 @@ except BaseException as e:
     logging.error(f"Lack of module. Error Message --- {e}")
 
 
-arcpy.env.overwriteOutput = True
 sys.setrecursionlimit(100000)
-
-
-# ---------- line class ----------
-# ---------- show message in toolbox ----------
-
-def _addMessage(mes):
-    print(mes)
-    arcpy.AddMessage(mes)
-
-
-def _addWarning(mes):
-    print(mes)
-    arcpy.AddWarning(mes)
-
-
-def _addError(mes):
-    print(mes)
-    arcpy.AddError(mes)
 
 
 # points type is not tuple
@@ -71,7 +50,6 @@ class lineEquation:
 
         for each in args[:2]:
             if not isinstance(each, tuple):
-                _addMessage('Point coord is not tuple type')
                 raise pointError
 
             self.points.append((float(each[0]), float(each[1]), float(each[2])))
@@ -118,8 +96,6 @@ class lineEquation:
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xy faild,'
-                        ' x1 is equal to x2, x1 is {}. x2 is {}'.format(self.x1, self.x2))
             # in math k is infinity / -infinity
             self.k_xy = -999
             return self
@@ -140,7 +116,6 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
-            _addWarning('ERROR --- calculate k_yz faild, y1 is equal to y2. y1 is %s' % self.y1)
             self.k_yz = -999
             return self
             # raise calKError
@@ -160,7 +135,6 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xz faild, x1 is equal to x2. x1 is %s' % self.x1)
             self.k_xz = -999
             return self
             # raise calKError
@@ -265,9 +239,6 @@ class lineEquation:
                 print("pnt xxxx3xxxx pnt")
             if self.extent_ymin < totalExtent[1] - 0.0001:
                 print("pnt xxxx4xxxx pnt")
-            _addError("Error --- generate spatial index for point failed, "
-                      "the point is ({}, {})".format(pnt_x, pnt_y))
-            _addError("total extent is {}".format(totalExtent))
             raise GenerateSpatialIndexError
 
         find_key = False
@@ -367,11 +338,6 @@ class lineEquation:
                 print("xxxx3xxxx")
             if self.extent_ymin < totalExtent[1] - 0.0001:
                 print("xxxx4xxxx")
-            _addError("Error --- generate spatial index failed, "
-                      "line object's extent is not in total extent. "
-                      "the line's first point is ({}, {})".format(self.x1, self.y1))
-            _addError("total extent is {}".format(totalExtent))
-            _addError("ply extent is {}".format(self.extent))
             raise GenerateSpatialIndexError
 
         find_key = False
@@ -395,7 +361,6 @@ class lineEquation:
         if isinstance(pipesize, int) or isinstance(pipesize, float):
             self.pipeSize = pipesize
         else:
-            _addWarning("Warning --- pipe size is not a number type, pipe size init failed")
             self.pipeSize = None
 
     def calDisFromPnt(self, firstPoint):
@@ -454,107 +419,6 @@ def getRunTime(func):
     return _wrapper
 
 
-# 给点数据添加坐标信息
-def addCoordField(inFC):
-    fieldName = ["id_", "x_cen_", "y_cen_", "z_cen_"]
-    fieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
-    fieldExp = ["f()", "!shape.centroid.X!", "!shape.centroid.Y!", "!shape.centroid.Z!"]
-    codes = """a = -1
-def f():
-    global a
-    a += 1
-    return a"""
-
-    z_index = fieldName.index("z_cen_")
-    id_index = fieldName.index("id_")
-    # 读取shp数据
-    baseName = os.path.basename(inFC)
-    dirName = os.path.dirname(inFC)
-    if not arcpy.env.workspace:
-        arcpy.env.workspace = dirName
-
-    desc = arcpy.Describe(inFC)
-
-    for i, eachField in enumerate(fieldName):
-        print(eachField)
-        try:
-            arcpy.AddField_management(inFC, eachField, fieldType[i], field_is_nullable=True)
-        except:
-            arcpy.DeleteField_management(inFC, eachField)
-            arcpy.AddField_management(inFC, eachField, fieldType[i], field_is_nullable=True)
-
-        if i == id_index:
-            arcpy.CalculateField_management(inFC, eachField, fieldExp[i], "PYTHON3", codes)
-        else:
-            if desc.hasZ:
-                arcpy.CalculateField_management(inFC, eachField, fieldExp[i], "PYTHON3")
-            else:
-                if i != z_index:
-                    arcpy.CalculateField_management(inFC, eachField, fieldExp[i], "PYTHON3")
-                else:
-                    arcpy.CalculateField_management(inFC, eachField, "0", "PYTHON3")
-
-
-@getRunTime
-def featureAttrToXlsx(inFC, outxlsx):
-    # 添加坐标信息
-    addCoordField(inFC)
-
-    wb = openpyxl.Workbook()
-    sht = wb.active
-
-    # 读取shp数据
-    baseName = os.path.basename(inFC)
-    dirName = os.path.dirname(inFC)
-    fieldList = [eachField.name for eachField in arcpy.ListFields(inFC) if eachField.type != "OID" and
-                 eachField.name != "Shape_Leng" and eachField.name != "Shape_Area"
-                 and eachField.name != "Shape"]
-    print(fieldList)
-    fieldLength = len(fieldList)
-
-    for i in range(1, fieldLength + 1):
-        sht.cell(1, i).value = fieldList[i - 1]
-
-    with arcpy.da.SearchCursor(inFC, fieldList) as cur:
-        rowNum = 1
-        for row in cur:
-            rowNum += 1
-            for i in range(fieldLength):
-                colNum = i + 1
-                data = row[i]
-                try:
-                    sht.cell(rowNum, colNum).value = data
-                except:
-                    sht.cell(rowNum, colNum).value = str(data)
-    wb.save(outxlsx)
-
-
-def readDataFromXlsx(inxlsx):
-    wb = openpyxl.load_workbook(inxlsx)
-    sht = wb.active
-
-    maxRow = sht.max_row
-    maxCol = sht.max_column
-
-    titleList = []
-    for i in range(1, maxCol + 1):
-        titleList.append(sht.cell(1, i).value)
-
-    index_x, index_y, index_z = (titleList.index("x_cen_"),
-                                 titleList.index("y_cen_"), titleList.index("z_cen_"))
-
-    resList = []
-    for i, eachRow in enumerate(sht.rows):
-        i += 1
-        if i == 1:
-            continue
-
-        x, y, z = eachRow[index_x].value, eachRow[index_y].value, eachRow[index_z].value
-        resList.append([x, y, z])
-
-    return resList
-
-
 def writeDataToDB(pntList, db, table):
     print("input", pntList)
     conn = sqlite3.connect(db)
@@ -572,7 +436,7 @@ def writeDataToDB(pntList, db, table):
 def readDataFromDB(db, table):
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    data = c.execute(f"SELECT * FROM {table};").fetchall()
+    data = c.execute(f"SELECT * FROM {table}").fetchall()
     print("db data is : ", data)
 
     return data
@@ -593,6 +457,9 @@ def DP(pntList, tolerance):
 
         # 实例化起点到终点的线
         line = lineEquation((x_f, y_f, z_f), (x_l, y_l, z_l), ext)
+
+        # 获取每个点到线的距离
+        pntNum = len(pntList)
 
         for eachPnt in pntList[1:-1]:
             x, y, z = eachPnt
@@ -630,32 +497,18 @@ def DP(pntList, tolerance):
         return resList
 
 
-def createLineFC(pntList, outputData):
-    data = [pntList]
-    fcList = []
-    for each in data:
-        fc = arcpy.Polyline(arcpy.Array([arcpy.Point(*coord) for coord in each]))
-        fcList.append(fc)
-
-    arcpy.CopyFeatures_management(fcList, outputData)
-
-
 @getRunTime
 def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
     global resList
-    # logging.info("Script start running")
-    # logging.info("Step1 --- Write points coord information to xlsx\n")
-    #
-    # featureAttrToXlsx(inFC, outxlsx)
-    #
-    # logging.info("Step2 --- Read points coord information from xlsx")
-    #
-    # pntList = readDataFromXlsx(outxlsx)
-    #
-    # logging.debug(f"Points coord information is {pntList}\n")
-    # logging.info("Step3 --- Write points coord information to sqlite3 database\n")
-    #
-    # writeDataToDB(pntList, outdb, table)
+    logging.info("Script start running")
+    logging.info("Step1 --- Write points coord information to xlsx\n")
+
+
+    logging.info("Step2 --- Read points coord information from xlsx")
+
+
+    logging.info("Step3 --- Write points coord information to sqlite3 database\n")
+
 
     logging.info("Step4 --- Read points coord information from sqlite3 database\n")
 
@@ -678,7 +531,6 @@ def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
         print(2)
         resList.append(pnts[1])
 
-    createLineFC(resList, outputFC)
 
     logging.info("Step7 --- Process finish")
 
