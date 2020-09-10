@@ -218,14 +218,28 @@ class lineEquation:
 
         return x, y
 
+
     # calculate z value in intersect x,y
-    def calculateZCoord_yz(self, y):
-        z = self.k_yz * y + self.b_yz
+    def calculateZCoord_yz(self, x, y):
+        if self.k_yz != -999:
+            z = self.k_yz * y + self.b_yz
+        else:
+            if self.k_xz != -999:
+                z = self.k_xz * x + self.b_xz
+            # the line is totally vertical to the floor(x, y)
+            else:
+                z = -999
         return z
 
     # calculate z value in intersect x,y
-    def calculateZCoord_xz(self, x):
-        z = self.k_xz * x + self.b_xz
+    def calculateZCoord_xz(self, x, y):
+        if self.k_xz != -999:
+            z = self.k_xz * x + self.b_xz
+        else:
+            if self.k_yz != -999:
+                z = self.k_yz * y + self.b_yz
+            else:
+                z = -999
         return z
 
     # make sure the x_min, y_min is less or equal than x_max, y_max in extent
@@ -413,26 +427,42 @@ class lineEquation:
         elif -0.0001 <= originK <= 0.0001:
             k = -999
         else:
-            k = 1 / originK
+            k = -1 / originK
 
         # origin line is y = n
         if k == -999:
             # x = n (k is infinity)
             originY = self.k_xy * x + self.b_xy
-            dis = abs(y - originY)
+            dis_xy = abs(y - originY)
+            interY = self.b_xy
+            interX = y
+            interZ = self.calculateZCoord_yz(interX, interY)
         # origin line is x = n (k is -999, b is -999)
         elif k == 0:
-            dis = abs(x - self.extent_xmin)
+            dis_xy = abs(x - self.extent_xmin)
+            interY = y
+            interX = self.extent_xmin
+            interZ = self.calculateZCoord_yz(interX, interY)
         else:
             b = y - k * x
             calX = self.extent_xmin
             calY = k * calX + b
+            calZ = self.calculateZCoord_yz(calX, calY)
 
             ext = (min(x, calX), min(y, calY), max(x, calX), max(y, calY))
 
-            newlineObj = lineEquation((x, y, z), (calX, calY, z), ext)
+            # calculate the point of intersect between line and it's vertical line
+            newlineObj = lineEquation((x, y, z), (calX, calY, calZ), ext)
             interX, interY = self.calculateIntersect(newlineObj)
-            dis = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
+            interZ = self.calculateZCoord_yz(interX, interY)
+
+            # calculate x, y, z in the point of intersect between two line obj
+            dis_xy = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
+
+        if interZ != -999:
+            dis = math.sqrt(dis_xy ** 2 + (z - interZ) ** 2)
+        else:
+            dis = dis_xy
 
         return dis
 
