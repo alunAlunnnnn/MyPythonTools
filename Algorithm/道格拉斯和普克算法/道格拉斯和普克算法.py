@@ -14,6 +14,7 @@ try:
     import datetime
     import sys
     import sqlite3
+    import arcpy.da
     logging.info("All module needed have imported successfully")
 
 except BaseException as e:
@@ -663,17 +664,29 @@ def DP(pntList, tolerance):
 def createLineFC(pntList, outputData):
     arcpy.env.outputZFlag = "Enabled"
 
-    data = [pntList]
-    fcList = []
-    for each in data:
-        fc = arcpy.Polyline(arcpy.Array([arcpy.Point(*coord) for coord in each]))
-        fcList.append(fc)
+    # data = [pntList]
+    # fcList = []
+    # for each in data:
+    #     fc = arcpy.Polyline(arcpy.Array([arcpy.Point(*coord) for coord in each]))
+    #     fcList.append(fc)
+    #
+    # arcpy.CopyFeatures_management(fcList, outputData)
 
-    arcpy.CopyFeatures_management(fcList, outputData)
+    data = pntList
+    dirName = os.path.dirname(outputData)
+    baseName = os.path.basename(outputData)
+    sr = arcpy.SpatialReference(3857)
+    arcpy.CreateFeatureclass_management(dirName, baseName, "POLYLINE", has_z="ENABLED",
+                                        spatial_reference=sr)
+
+    with arcpy.da.InsertCursor(outputData, ["SHAPE@"]) as cur:
+        line = arcpy.Polyline(arcpy.Array(
+            [arcpy.Point(*each) for each in [list(map(float, pnt)) for pnt in data]]))
+        cur.insertRow([line])
 
 
-# todo 明天把点坐标写入到文本文件中，再展点 + 点转线
-def writeToXlsx():
+# # todo 明天把点坐标写入到文本文件中，再展点 + 点转线
+# def writeToXlsx():
 
 
 
