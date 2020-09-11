@@ -661,6 +661,8 @@ def DP(pntList, tolerance):
 
 
 def createLineFC(pntList, outputData):
+    arcpy.env.outputZFlag = "Enabled"
+
     data = [pntList]
     fcList = []
     for each in data:
@@ -670,22 +672,27 @@ def createLineFC(pntList, outputData):
     arcpy.CopyFeatures_management(fcList, outputData)
 
 
+# todo 明天把点坐标写入到文本文件中，再展点 + 点转线
+def writeToXlsx():
+
+
+
 @getRunTime
 def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
     global resList
-    # logging.info("Script start running")
-    # logging.info("Step1 --- Write points coord information to xlsx\n")
-    #
-    # featureAttrToXlsx(inFC, outxlsx)
-    #
-    # logging.info("Step2 --- Read points coord information from xlsx")
-    #
-    # pntList = readDataFromXlsx(outxlsx)
-    #
-    # logging.debug(f"Points coord information is {pntList}\n")
-    # logging.info("Step3 --- Write points coord information to sqlite3 database\n")
-    #
-    # writeDataToDB(pntList, outdb, table)
+    logging.info("Script start running")
+    logging.info("Step1 --- Write points coord information to xlsx\n")
+
+    featureAttrToXlsx(inFC, outxlsx)
+
+    logging.info("Step2 --- Read points coord information from xlsx")
+
+    pntList = readDataFromXlsx(outxlsx)
+
+    logging.debug(f"Points coord information is {pntList}\n")
+    logging.info("Step3 --- Write points coord information to sqlite3 database\n")
+
+    writeDataToDB(pntList, outdb, table)
 
     logging.info("Step4 --- Read points coord information from sqlite3 database\n")
 
@@ -721,14 +728,26 @@ resList = []
 # table = "pntcoord"
 # outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res.shp"
 
-data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点_pcs.shp"
+data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点_pcs_z.shp"
 outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
 outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-table = "pntcoord_pcs"
+table = "pntcoord_pcs_z"
 tolerance = 0.000000000000001
-outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res_pcs.shp"
+outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res_pcs_z.shp"
 
 
 if __name__ == "__main__":
     main(data, outxlsx, tolerance, outdb, table, outputFC)
     print(resList)
+
+
+#
+# startz = 0
+# def f(a):
+#     global startz
+#     if a <= 800:
+#         startz += 1
+#         return startz
+#     else:
+#         startz -= 1
+#         return startz
