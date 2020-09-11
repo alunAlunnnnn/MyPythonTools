@@ -402,7 +402,6 @@ def main(tolerance, outdb, table):
 # 内置参数
 resList = []
 
-
 for i in range(1, 8):
     print("=" * 30)
     print(i)

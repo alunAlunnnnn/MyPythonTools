@@ -773,7 +773,6 @@ for i in range(1, 8):
         print(resList)
 
 
-
 # startz = 0
 # def f(a):
 #     global startz
