@@ -18,7 +18,7 @@ except BaseException as e:
     logging.error(f"Lack of module. Error Message --- {e}")
 
 
-sys.setrecursionlimit(100000)
+sys.setrecursionlimit(10000000)
 
 
 # points type is not tuple
@@ -93,16 +93,16 @@ class lineEquation:
 
         self.generateEquation()
 
+
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
-            # in math k is infinity / -infinity
             self.k_xy = -999
             return self
-            # raise calKError
         k = (self.y2 - self.y1) / (self.x2 - self.x1)
         self.k_xy = k
         return self
+
 
     # calculate b --- y1 - k * x1
     def calculateB_xy(self):
@@ -113,15 +113,16 @@ class lineEquation:
             self.b_xy = b
         return self
 
+
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
             self.k_yz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.y2 - self.y1)
         self.k_yz = k
         return self
+
 
     # calculate b --- z1 - k * y1
     def calculateB_yz(self):
@@ -132,15 +133,16 @@ class lineEquation:
             self.b_yz = b
         return self
 
+
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
             self.k_xz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.x2 - self.x1)
         self.k_xz = k
         return self
+
 
     # calculate b --- z1 - k * y1
     def calculateB_xz(self):
@@ -151,12 +153,14 @@ class lineEquation:
             self.b_xz = b
         return self
 
+
     # generate function equation
     def generateEquation(self):
         self.euqation_xy = '%s * x + %s' % (self.k_xy, self.b_xy)
         self.euqation_yz = '%s * x + %s' % (self.k_yz, self.b_yz)
         self.euqation_xz = '%s * x + %s' % (self.k_xz, self.b_xz)
         return self
+
 
     # calculate the intersect point
     def calculateIntersect(self, otherLineObj):
@@ -192,14 +196,28 @@ class lineEquation:
 
         return x, y
 
+
     # calculate z value in intersect x,y
-    def calculateZCoord_yz(self, y):
-        z = self.k_yz * y + self.b_yz
+    def calculateZCoord_yz(self, x, y):
+        if self.k_yz != -999:
+            z = self.k_yz * y + self.b_yz
+        else:
+            if self.k_xz != -999:
+                z = self.k_xz * x + self.b_xz
+            # the line is totally vertical to the floor(x, y)
+            else:
+                z = -999
         return z
 
     # calculate z value in intersect x,y
-    def calculateZCoord_xz(self, x):
-        z = self.k_xz * x + self.b_xz
+    def calculateZCoord_xz(self, x, y):
+        if self.k_xz != -999:
+            z = self.k_xz * x + self.b_xz
+        else:
+            if self.k_yz != -999:
+                z = self.k_yz * y + self.b_yz
+            else:
+                z = -999
         return z
 
     # make sure the x_min, y_min is less or equal than x_max, y_max in extent
@@ -209,159 +227,6 @@ class lineEquation:
         assert int(self.extent_ymin * 10 ** 8) <= int(
             self.extent_ymax * 10 ** 8), "Error --- Extent of line object is not available"
 
-    # detect the point can touch the line with a tolerance or not
-    def pointTouchDet(self, pnt, tolerance, totalExtent):
-        """
-        usage: used to detect that, the point is in the line with a tolerance num.
-                before use this, please call the function "generateSpatialIndex()" yet
-        :param pnt:(x, y)
-        :param tolerance:
-        :return:
-        """
-        pnt_x, pnt_y = pnt[0], pnt[1]
-        pnt_index = None
-        spatialIndex_x = 1
-        spatialIndex_y = 1
-        # generate the spatial index for point
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
-
-        # detect whether is out of the ply's extent
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("pnt xxxx1xxxx pnt")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("pnt xxxx2xxxx pnt")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("pnt xxxx3xxxx pnt")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("pnt xxxx4xxxx pnt")
-            raise GenerateSpatialIndexError
-
-        find_key = False
-        # for i in range(1, 11):
-        for i in range(1, spatialIndex_y + 1):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if pnt_y >= total_ext_ymax - i * spaindex_step_y:
-                pnt_index_y = str(i)
-                # for j in range(1, 11):
-                for j in range(1, spatialIndex_x + 1):
-                    if pnt_x >= total_ext_xmax - j * spaindex_step_x:
-                        pnt_index_x = str(j)
-                        pnt_index = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-
-        # no spatial index, no calculate
-        assert pnt_index, "there are no spatial index in point"
-
-        # match spatial index
-        if pnt_index == self.spaindex:
-            # point is in the extent of polyline
-            if (self.extent_xmin - tolerance <= pnt_x <= self.extent_xmax + tolerance
-                    and self.extent_ymin - tolerance <= pnt_y <= self.extent_ymax + tolerance):
-                # point is in the extent of polyline
-                # detect whether the point is on the line
-
-                # vertical line
-                if self.k_xy == -999:
-                    if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                        if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # horizon line
-                elif self.k_xy == 0:
-                    if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                        if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # calculate the point in line with k_xy
-                else:
-                    det_y = self.k_xy * pnt_x + self.b_xy
-                    if det_y - tolerance <= pnt_y <= det_y + tolerance:
-                        return True
-                    else:
-                        return False
-            # point is out of ply's extent
-            else:
-                return False
-        # the spatial index between point and ply is not equal
-        else:
-            return False
-
-    def generateSpatialIndex(self, totalExtent):
-        """
-        usage: generate spatial index, now is generate 10*10 grid index.
-
-        index number as this:
-         ----------
-        |1,10|...|1,2|1,1|
-         ----------
-        |2,10|...|2,2|2,1|
-         ----------
-        |...........|
-        |.          |
-        |.          |
-         -----------
-        |10,10|...|10,2|10,1|
-
-        :param totalExtent: (xmin, ymin, xmax, ymax)
-        :return:
-        """
-        spatialIndex_x = 1
-        spatialIndex_y = 1
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
-
-        self.spaind_totalext = totalExtent
-
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("xxxx1xxxx")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("xxxx2xxxx")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("xxxx3xxxx")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("xxxx4xxxx")
-            raise GenerateSpatialIndexError
-
-        find_key = False
-        # for i in range(1, 11):
-        for i in range(1, spatialIndex_y + 1):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if self.extent_ymax >= total_ext_ymax - i * spaindex_step_y:
-                self.spaindex_row = str(i)
-                # for j in range(1, 11):
-                for j in range(1, spatialIndex_y + 1):
-                    if self.extent_xmax >= total_ext_xmax - j * spaindex_step_x:
-                        self.spaindex_col = str(j)
-                        self.spaindex = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-        return self
-
-    def setPipeSize(self, pipesize):
-        if isinstance(pipesize, int) or isinstance(pipesize, float):
-            self.pipeSize = pipesize
-        else:
-            self.pipeSize = None
 
     def calDisFromPnt(self, firstPoint):
         """
@@ -378,26 +243,42 @@ class lineEquation:
         elif -0.0001 <= originK <= 0.0001:
             k = -999
         else:
-            k = 1 / originK
+            k = -1 / originK
 
         # origin line is y = n
         if k == -999:
             # x = n (k is infinity)
             originY = self.k_xy * x + self.b_xy
-            dis = abs(y - originY)
+            dis_xy = abs(y - originY)
+            interY = self.b_xy
+            interX = y
+            interZ = self.calculateZCoord_yz(interX, interY)
         # origin line is x = n (k is -999, b is -999)
         elif k == 0:
-            dis = abs(x - self.extent_xmin)
+            dis_xy = abs(x - self.extent_xmin)
+            interY = y
+            interX = self.extent_xmin
+            interZ = self.calculateZCoord_yz(interX, interY)
         else:
             b = y - k * x
             calX = self.extent_xmin
             calY = k * calX + b
+            calZ = self.calculateZCoord_yz(calX, calY)
 
             ext = (min(x, calX), min(y, calY), max(x, calX), max(y, calY))
 
-            newlineObj = lineEquation((x, y, z), (calX, calY, z), ext)
+            # calculate the point of intersect between line and it's vertical line
+            newlineObj = lineEquation((x, y, z), (calX, calY, calZ), ext)
             interX, interY = self.calculateIntersect(newlineObj)
-            dis = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
+            interZ = self.calculateZCoord_yz(interX, interY)
+
+            # calculate x, y, z in the point of intersect between two line obj
+            dis_xy = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
+
+        if interZ != -999:
+            dis = math.sqrt(dis_xy ** 2 + (z - interZ) ** 2)
+        else:
+            dis = dis_xy
 
         return dis
 
@@ -426,24 +307,21 @@ def writeDataToDB(pntList, db, table):
     c.execute(f"DROP TABLE IF EXISTS {table};")
     c.execute(f"CREATE TABLE IF NOT EXISTS {table}(X real, Y real, Z real); ")
     c.executemany(f"INSERT INTO {table} VALUES(?, ?, ?);", pntList)
-
     conn.commit()
     conn.close()
-
     return db
 
 
 def readDataFromDB(db, table):
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    data = c.execute(f"SELECT * FROM {table}").fetchall()
+    data = c.execute(f"SELECT * FROM {table};").fetchall()
     print("db data is : ", data)
 
     return data
 
 
 def DP(pntList, tolerance):
-    # print(pntList)
     """
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
@@ -457,9 +335,6 @@ def DP(pntList, tolerance):
 
         # 实例化起点到终点的线
         line = lineEquation((x_f, y_f, z_f), (x_l, y_l, z_l), ext)
-
-        # 获取每个点到线的距离
-        pntNum = len(pntList)
 
         for eachPnt in pntList[1:-1]:
             x, y, z = eachPnt
@@ -498,23 +373,11 @@ def DP(pntList, tolerance):
 
 
 @getRunTime
-def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
+def main(tolerance, outdb, table, outputFC):
     global resList
-    logging.info("Script start running")
-    logging.info("Step1 --- Write points coord information to xlsx\n")
-
-
-    logging.info("Step2 --- Read points coord information from xlsx")
-
-
-    logging.info("Step3 --- Write points coord information to sqlite3 database\n")
-
-
-    logging.info("Step4 --- Read points coord information from sqlite3 database\n")
-
     pntDataList = readDataFromDB(outdb, table)
     pnts = (tuple(pntDataList[0]), tuple(pntDataList[-1]))
-    print(pnts)
+    print("start pnt, end pnt: ", pnts)
 
     logging.debug(f"Points coord information is {pntDataList}\n")
     logging.info("Step5 --- Process points with Douglas–Peucker algorithm")
@@ -532,25 +395,22 @@ def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
         resList.append(pnts[1])
 
 
-    logging.info("Step7 --- Process finish")
-
-
 # 内置参数
 resList = []
 
-# 传参
-# data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点.shp"
-# table = "pntcoord"
-# outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res.shp"
 
-data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点_pcs.shp"
-outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
-outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-table = "pntcoord_pcs"
-tolerance = 0.000000000000001
-outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res_pcs.shp"
+for i in range(1, 8):
+    # 内置参数
+    resList = []
+
+    data = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}.shp"
+    outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
+    outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
+    table = data.split("\\")[-1].split(".shp")[0]
+    tolerance = 0.000000001
+    outputFC = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}_res.shp"
 
 
-if __name__ == "__main__":
-    main(data, outxlsx, tolerance, outdb, table, outputFC)
-    print(resList)
+    if __name__ == "__main__":
+        main(tolerance, outdb, table, outputFC)
+        print(resList)
