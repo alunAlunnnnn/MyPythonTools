@@ -18,7 +18,7 @@ except BaseException as e:
     logging.error(f"Lack of module. Error Message --- {e}")
 
 
-sys.setrecursionlimit(10000000)
+sys.setrecursionlimit(1000000000)
 
 
 # points type is not tuple
@@ -301,6 +301,7 @@ def getRunTime(func):
 
 
 def writeDataToDB(pntList, db, table):
+    table += "_res"
     print("input", pntList)
     conn = sqlite3.connect(db)
     c = conn.cursor()
@@ -327,6 +328,7 @@ def DP(pntList, tolerance):
     :return:
     """
     global resList
+    global line, pntList1, pntList2
     if len(pntList) > 2:
 
         x_f, y_f, z_f = (pntList[0])
@@ -373,7 +375,7 @@ def DP(pntList, tolerance):
 
 
 @getRunTime
-def main(tolerance, outdb, table, outputFC):
+def main(tolerance, outdb, table):
     global resList
     pntDataList = readDataFromDB(outdb, table)
     pnts = (tuple(pntDataList[0]), tuple(pntDataList[-1]))
@@ -394,23 +396,24 @@ def main(tolerance, outdb, table, outputFC):
         print(2)
         resList.append(pnts[1])
 
+    writeDataToDB(resList, outdb, table)
+
 
 # 内置参数
 resList = []
 
 
 for i in range(1, 8):
+    print("=" * 30)
+    print(i)
+    print("=" * 30)
     # 内置参数
     resList = []
 
-    data = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}.shp"
-    outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
     outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-    table = data.split("\\")[-1].split(".shp")[0]
-    tolerance = 0.000000001
-    outputFC = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}_res.shp"
-
+    table = fr"shp_{i}"
+    tolerance = 0.001
 
     if __name__ == "__main__":
-        main(tolerance, outdb, table, outputFC)
+        main(tolerance, outdb, table)
         print(resList)

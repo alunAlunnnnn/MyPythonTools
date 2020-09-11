@@ -675,7 +675,7 @@ def createLineFC(pntList, outputData):
     data = pntList
     dirName = os.path.dirname(outputData)
     baseName = os.path.basename(outputData)
-    sr = arcpy.SpatialReference(3857)
+    sr = arcpy.SpatialReference(4326)
 
     # arcpy.CreateFeatureclass_management(dirName, baseName, "POLYLINE", has_z="ENABLED",
     #                                     spatial_reference=sr)
@@ -702,21 +702,21 @@ def createLineFC(pntList, outputData):
 @getRunTime
 def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
     global resList
-    logging.info("Script start running")
-    logging.info("Step1 --- Write points coord information to xlsx\n")
-
-    featureAttrToXlsx(inFC, outxlsx)
-
-    logging.info("Step2 --- Read points coord information from xlsx")
-
-    pntList = readDataFromXlsx(outxlsx)
-
-    logging.debug(f"Points coord information is {pntList}\n")
-    logging.info("Step3 --- Write points coord information to sqlite3 database\n")
-
-    writeDataToDB(pntList, outdb, table)
-
-    logging.info("Step4 --- Read points coord information from sqlite3 database\n")
+    # logging.info("Script start running")
+    # logging.info("Step1 --- Write points coord information to xlsx\n")
+    #
+    # featureAttrToXlsx(inFC, outxlsx)
+    #
+    # logging.info("Step2 --- Read points coord information from xlsx")
+    #
+    # pntList = readDataFromXlsx(outxlsx)
+    #
+    # logging.debug(f"Points coord information is {pntList}\n")
+    # logging.info("Step3 --- Write points coord information to sqlite3 database\n")
+    #
+    # writeDataToDB(pntList, outdb, table)
+    #
+    # logging.info("Step4 --- Read points coord information from sqlite3 database\n")
 
     pntDataList = readDataFromDB(outdb, table)
     pnts = (tuple(pntDataList[0]), tuple(pntDataList[-1]))
@@ -739,6 +739,9 @@ def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
 
     createLineFC(resList, outputFC)
 
+    table += "_res"
+    writeDataToDB(resList, outdb, table)
+
     logging.info("Step7 --- Process finish")
 
 
@@ -751,14 +754,17 @@ resList = []
 # outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res.shp"
 
 for i in range(1, 8):
+    print("="*30)
+    print(i)
+    print("="*30)
     # 内置参数
     resList = []
 
     data = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}.shp"
     outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
     outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-    table = data.split("\\")[-1].split(".shp")[0]
-    tolerance = 0.000000001
+    table = fr"shp_{i}"
+    tolerance = 0.001
     outputFC = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}_res.shp"
 
 
