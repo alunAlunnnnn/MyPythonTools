@@ -22,7 +22,7 @@ except BaseException as e:
 
 
 arcpy.env.overwriteOutput = True
-sys.setrecursionlimit(100000)
+sys.setrecursionlimit(10000000)
 
 
 # ---------- line class ----------
@@ -119,8 +119,8 @@ class lineEquation:
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xy faild,'
-                        ' x1 is equal to x2, x1 is {}. x2 is {}'.format(self.x1, self.x2))
+            # _addWarning('ERROR --- calculate k_xy faild,'
+            #             ' x1 is equal to x2, x1 is {}. x2 is {}'.format(self.x1, self.x2))
             # in math k is infinity / -infinity
             self.k_xy = -999
             return self
@@ -141,7 +141,7 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
-            _addWarning('ERROR --- calculate k_yz faild, y1 is equal to y2. y1 is %s' % self.y1)
+            # _addWarning('ERROR --- calculate k_yz faild, y1 is equal to y2. y1 is %s' % self.y1)
             self.k_yz = -999
             return self
             # raise calKError
@@ -161,7 +161,7 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xz faild, x1 is equal to x2. x1 is %s' % self.x1)
+            # _addWarning('ERROR --- calculate k_xz faild, x1 is equal to x2. x1 is %s' % self.x1)
             self.k_xz = -999
             return self
             # raise calKError
@@ -676,13 +676,22 @@ def createLineFC(pntList, outputData):
     dirName = os.path.dirname(outputData)
     baseName = os.path.basename(outputData)
     sr = arcpy.SpatialReference(3857)
-    arcpy.CreateFeatureclass_management(dirName, baseName, "POLYLINE", has_z="ENABLED",
+
+    # arcpy.CreateFeatureclass_management(dirName, baseName, "POLYLINE", has_z="ENABLED",
+    #                                     spatial_reference=sr)
+    #
+    # with arcpy.da.InsertCursor(outputData, ["SHAPE@"]) as cur:
+    #     line = arcpy.Polyline(arcpy.Array(
+    #         [arcpy.Point(*each) for each in [list(map(float, pnt)) for pnt in data]]))
+    #     cur.insertRow([line])
+
+    arcpy.CreateFeatureclass_management(dirName, baseName, "POINT", has_z="ENABLED",
                                         spatial_reference=sr)
 
     with arcpy.da.InsertCursor(outputData, ["SHAPE@"]) as cur:
-        line = arcpy.Polyline(arcpy.Array(
-            [arcpy.Point(*each) for each in [list(map(float, pnt)) for pnt in data]]))
-        cur.insertRow([line])
+        point = [arcpy.Point(*each) for each in [list(map(float, pnt)) for pnt in data]]
+        for eachPnt in point:
+            cur.insertRow([eachPnt])
 
 
 # # todo 明天把点坐标写入到文本文件中，再展点 + 点转线
@@ -711,7 +720,7 @@ def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
 
     pntDataList = readDataFromDB(outdb, table)
     pnts = (tuple(pntDataList[0]), tuple(pntDataList[-1]))
-    print(pnts)
+    print("start pnt, end pnt: ", pnts)
 
     logging.debug(f"Points coord information is {pntDataList}\n")
     logging.info("Step5 --- Process points with Douglas–Peucker algorithm")
@@ -741,24 +750,39 @@ resList = []
 # table = "pntcoord"
 # outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res.shp"
 
-data = r"E:\GIS算法\道格拉斯和普克算法\测试数据\路径点_pcs_z.shp"
-outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
-outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-table = "pntcoord_pcs_z"
-tolerance = 0.000000000000001
-outputFC = r"E:\GIS算法\道格拉斯和普克算法\测试数据\shp\res_pcs_z.shp"
+for i in range(1, 8):
+    # 内置参数
+    resList = []
+
+    data = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}.shp"
+    outxlsx = r"E:\GIS算法\道格拉斯和普克算法\测试数据\测试excel.xlsx"
+    outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
+    table = data.split("\\")[-1].split(".shp")[0]
+    tolerance = 0.000000001
+    outputFC = fr"E:\GIS算法\道格拉斯和普克算法\测试数据\shp_origin_test\shp_{i}_res.shp"
 
 
-if __name__ == "__main__":
-    main(data, outxlsx, tolerance, outdb, table, outputFC)
-    print(resList)
+    if __name__ == "__main__":
+        main(data, outxlsx, tolerance, outdb, table, outputFC)
+        print(resList)
 
 
-#
+
 # startz = 0
 # def f(a):
 #     global startz
 #     if a <= 800:
+#         startz += 1
+#         return startz
+#     else:
+#         startz -= 1
+#         return startz
+#
+# startz = 0
+# def f(a, count):
+#     global startz
+#     a, count = float(a), float(count)
+#     if a <= count/2:
 #         startz += 1
 #         return startz
 #     else:
