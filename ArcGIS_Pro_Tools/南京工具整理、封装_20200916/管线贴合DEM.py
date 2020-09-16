@@ -1,4 +1,3 @@
-import inspect
 import sys
 import os
 import logging
@@ -37,6 +36,7 @@ else:
 try:
     import arcpy
     import functools
+    import inspect
 
     logging.debug("Module import success")
 except BaseException as e:
@@ -176,18 +176,15 @@ def availableDataName(outputPath: str, outputName: str) -> str:
     res = _wrapper(outputPath, outputName)
     return res
 
+
 @logIt
 def interShape3D(inDEM, inFC, outputPath, outputName):
     @setTempWorkspace(outputPath)
     def _wrapper(inDEM, inFC, outputPath, outputName):
-        # logging.debug(f" ------ start function interShape3D ------")
-        # logging.debug(f" --- \n inDEM: {inDEM} \n inFC: {inFC} \n"
-        #               f" outputPath: {outputPath} \n outputName: {outputName} \n ")
-        # get a available data, in different workspace
         outputData = availableDataName(outputPath, outputName)
 
         # main fuction process start
-        arcpy.InterpolateShape_3d(inDEM, inFC, outputData)
+        arcpy.InterpolateShape_3d(inDEM, inFC, outputData, vertices_only="vertices_only")
 
         return outputData
 
@@ -196,6 +193,7 @@ def interShape3D(inDEM, inFC, outputPath, outputName):
 
 
 # add format field to feature classes
+@logIt
 def addFormatField(inFC, QDMS, ZDMS):
     """
     usage: add four format field into line feature class, and calculate it in sub method.
@@ -204,9 +202,6 @@ def addFormatField(inFC, QDMS, ZDMS):
     :param ZDMS: field, the buried depth field of the last point in the line.
     :return: string, the directory of feature class have inputed.
     """
-    logging.debug(f" ------ start function addFormatField ------")
-    logging.debug(f" --- \n inFC: {inFC} \n QDMS: {QDMS} \n"
-                  f" ZDMS: {ZDMS} \n")
     fieldName = ["ori_z_f", "ori_z_l", "tar_z_f", "tar_z_l"]
     fieldType = "DOUBLE"
 
@@ -225,11 +220,8 @@ def addFormatField(inFC, QDMS, ZDMS):
     return inFC
 
 
+@logIt
 def convertTo3DWithAttr(inFC, outputPath, outputName):
-    logging.debug(f" ------ start function convertTo3DWithAttr ------")
-    logging.debug(f" --- \n inFC: {inFC} \n outputPath: {outputPath} \n"
-                  f" outputName: {outputName} \n")
-
     resData = availableDataName(outputPath, outputName)
 
     logging.debug("start process feature class to 3d")
@@ -239,6 +231,7 @@ def convertTo3DWithAttr(inFC, outputPath, outputName):
     return resData
 
 
+@logIt
 @getRunTime
 def main(inDEM, inFC, outputPath, outputName, QDMS, ZDMS):
     logging.info("Step1 --- start interpolate 3d to feature class.")
@@ -258,12 +251,22 @@ def main(inDEM, inFC, outputPath, outputName, QDMS, ZDMS):
         pass
 
 
-inDEM = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem"
-inFC = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp"
-outputPath = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res"
-outputName = "test"
-QDMS = "QDMS"
-ZDMS = "ZDMS"
+# inDEM = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem"
+# inFC = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp"
+# outputPath = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res"
+# outputName = "test"
+# QDMS = "QDMS"
+# ZDMS = "ZDMS"
+
+
+inDEM = arcpy.GetParameterAsText(0)
+inFC = arcpy.GetParameterAsText(1)
+QDMS = arcpy.GetParameterAsText(2)
+ZDMS = arcpy.GetParameterAsText(3)
+outputPath = arcpy.GetParameterAsText(4)
+outputName = arcpy.GetParameterAsText(5)
+
+
 if __name__ == "__main__":
     try:
         logging.info(" ======================== Start ========================")
