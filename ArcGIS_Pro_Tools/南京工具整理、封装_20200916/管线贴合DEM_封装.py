@@ -260,9 +260,9 @@ def main(inDEM, inFC, outputPath, outputName, QDMS, ZDMS):
         pass
 
 
-# inDEM = r"E:\鍗椾含宸ュ叿\宸ュ叿浜ゆ椿鏁寸悊_0916\娴嬭瘯鏁版嵁\宸ュ叿1_DEM璧蜂紡\0813鐜扮姸.dem"
-# inFC = r"E:\鍗椾含宸ュ叿\宸ュ叿浜ゆ椿鏁寸悊_0916\娴嬭瘯鏁版嵁\宸ュ叿1_DEM璧蜂紡\line.shp"
-# outputPath = r"E:\鍗椾含宸ュ叿\宸ュ叿浜ゆ椿鏁寸悊_0916\娴嬭瘯鏁版嵁\宸ュ叿1_DEM璧蜂紡\res"
+# inDEM = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem"
+# inFC = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp"
+# outputPath = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res"
 # outputName = "test"
 # QDMS = "QDMS"
 # ZDMS = "ZDMS"
