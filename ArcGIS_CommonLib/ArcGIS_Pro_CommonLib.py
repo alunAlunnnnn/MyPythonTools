@@ -2,78 +2,8 @@ import arcpy
 import os
 import functools
 import datetime
+import math
 
-
-# ---------- show message in toolbox ----------
-
-def _addMessage(mes):
-    print(mes)
-    arcpy.AddMessage(mes)
-
-
-def _addWarning(mes):
-    print(mes)
-    arcpy.AddWarning(mes)
-
-
-def _addError(mes):
-    print(mes)
-    arcpy.AddError(mes)
-
-
-def getRunTime(func):
-    @functools.wraps(func)
-    def _wrapper(*args, **kwargs):
-        start = datetime.datetime.now()
-        print("start at: {} ".format(start))
-        res = func(*args, **kwargs)
-        finish = datetime.datetime.now()
-        print("finish at: {}".format(finish))
-        cost = finish - start
-        print("total cost: {}".format(cost))
-        return res
-    return _wrapper
-
-
-# ---------- data fields process ----------
-
-def _addField(inFeaShp, fieldName, fieldType):
-    try:
-        arcpy.AddField_management(inFeaShp, fieldName, fieldType)
-    except:
-        arcpy.DeleteField_management(inFeaShp, fieldName)
-        arcpy.AddField_management(inFeaShp, fieldName, fieldType)
-
-
-# add a filed named "unic_id_" and calculate the unic id
-def _addUnicIDField(inFeaShp):
-    _addField(inFeaShp, "unic_id_", "LONG")
-    codes = """a = 0
-def calUnicField():
-    global a
-    a += 1
-    return a"""
-    arcpy.CalculateField_management(inFeaShp, "unic_id_", "calUnicField()", "PYTHON3", codes)
-
-
-# add coord fields
-def _addCoordFields(inFC, feaType):
-    if feaType == "point":
-        fieldList = ["x_cen_", "y_cen_", "z_cen_"]
-        expList = ["!shape.centroid.X!", "!shape.centroid.Y!", "!shape.centroid.Z!"]
-        for i, each in enumerate(fieldList):
-            _addField(inFC, each, "DOUBLE")
-            arcpy.CalculateField_management(inFC, each, expList[i], "PYTHON3")
-    elif feaType == "line":
-        fieldList = ["x_f_", "y_f_", "z_f_", "x_l_", "y_l_", "z_l_"]
-        expList = ["!shape.firstPoint.X!", "!shape.firstPoint.Y!", "!shape.firstPoint.Z!",
-                   "!shape.lastPoint.X!", "!shape.lastPoint.Y!", "!shape.lastPoint.Z!"]
-        for i, each in enumerate(fieldList):
-            _addField(inFC, each, "DOUBLE")
-            arcpy.CalculateField_management(inFC, each, expList[i], "PYTHON3")
-
-
-# ---------- line class ----------
 
 # points type is not tuple
 class pointError(Exception):
@@ -104,7 +34,6 @@ class lineEquation:
 
         for each in args[:2]:
             if not isinstance(each, tuple):
-                _addMessage('Point coord is not tuple type')
                 raise pointError
 
             self.points.append((float(each[0]), float(each[1]), float(each[2])))
@@ -117,6 +46,9 @@ class lineEquation:
 
         # get point number, start with 1
         self.pntNum = len(args)
+
+        # init pipe size
+        self.pipeSize = None
 
         # set coord of start point and finish point
         self.x1 = self.points[0][0]
@@ -148,11 +80,8 @@ class lineEquation:
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xy faild,'
-                        ' x1 is equal to x2, x1 is {}. x2 is {}'.format(self.x1, self.x2))
             self.k_xy = -999
             return self
-            # raise calKError
         k = (self.y2 - self.y1) / (self.x2 - self.x1)
         self.k_xy = k
         return self
@@ -169,10 +98,8 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
-            _addWarning('ERROR --- calculate k_yz faild, y1 is equal to y2. y1 is %s' % self.y1)
             self.k_yz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.y2 - self.y1)
         self.k_yz = k
         return self
@@ -189,10 +116,8 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
-            _addWarning('ERROR --- calculate k_xz faild, x1 is equal to x2. x1 is %s' % self.x1)
             self.k_xz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.x2 - self.x1)
         self.k_xz = k
         return self
@@ -248,13 +173,26 @@ class lineEquation:
         return x, y
 
     # calculate z value in intersect x,y
-    def calculateZCoord_yz(self, y):
-        z = self.k_yz * y + self.b_yz
+    def calculateZCoord_yz(self, x, y):
+        if self.k_yz != -999:
+            z = self.k_yz * y + self.b_yz
+        else:
+            if self.k_xz != -999:
+                z = self.k_xz * x + self.b_xz
+            # the line is totally vertical to the floor(x, y)
+            else:
+                z = -999
         return z
 
     # calculate z value in intersect x,y
-    def calculateZCoord_xz(self, x):
-        z = self.k_xz * x + self.b_xz
+    def calculateZCoord_xz(self, x, y):
+        if self.k_xz != -999:
+            z = self.k_xz * x + self.b_xz
+        else:
+            if self.k_yz != -999:
+                z = self.k_yz * y + self.b_yz
+            else:
+                z = -999
         return z
 
     # make sure the x_min, y_min is less or equal than x_max, y_max in extent
@@ -262,153 +200,274 @@ class lineEquation:
         assert int(self.extent_xmin * 10 ** 8) <= int(
             self.extent_xmax * 10 ** 8), "Error --- Extent of line object is not available"
         assert int(self.extent_ymin * 10 ** 8) <= int(
-                    self.extent_ymax * 10 ** 8), "Error --- Extent of line object is not available"
+            self.extent_ymax * 10 ** 8), "Error --- Extent of line object is not available"
 
-    # detect the point can touch the line with a tolerance or not
-    def pointTouchDet(self, pnt, tolerance, totalExtent):
+    def calDisFromPnt(self, firstPoint):
         """
-        usage: used to detect that, the point is in the line with a tolerance num.
-                before use this, please call the function "generateSpatialIndex()" yet
-        :param pnt:
-        :param tolerance:
-        :return:
+        usage: 使用第一个点坐标及 k 、 b 值来生成 line 对象
+        :param firstPoint: Tuple --- 点坐标（x, y, z）
+        :return: Double --- 距离值
         """
-        pnt_x, pnt_y = pnt[0], pnt[1]
-        pnt_index = None
+        x, y, z = firstPoint[0], firstPoint[1], firstPoint[2]
 
-        # generate the spatial index for point
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / 10), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / 10), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
-
-        # detect whether is out of the ply's extent
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("pnt xxxx1xxxx pnt")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("pnt xxxx2xxxx pnt")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("pnt xxxx3xxxx pnt")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("pnt xxxx4xxxx pnt")
-            _addError("Error --- generate spatial index for point failed, "
-                      "the point is ({}, {})".format(pnt_x, pnt_y))
-            _addError("total extent is {}".format(totalExtent))
-            raise GenerateSpatialIndexError
-
-        find_key = False
-        for i in range(1, 11):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if pnt_y >= total_ext_ymax - i * spaindex_step_y:
-                pnt_index_y = str(i)
-                for j in range(1, 11):
-                    if pnt_x >= total_ext_xmax - j * spaindex_step_x:
-                        pnt_index_x = str(j)
-                        pnt_index = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-
-        # no spatial index, no calculate
-        assert pnt_index, "there are no spatial index in point"
-
-        # match spatial index
-        if pnt_index == self.spaindex:
-            # point is in the extent of polyline
-            if (self.extent_xmin - tolerance <= pnt_x <= self.extent_xmax + tolerance
-                    and self.extent_ymin - tolerance <= pnt_y <= self.extent_ymax + tolerance):
-                # point is in the extent of polyline
-                # detect whether the point is on the line
-
-                # vertical line
-                if self.k_xy == -999:
-                    if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                        if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # horizon line
-                elif self.k_xy == 0:
-                    if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                        if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # calculate the point in line with k_xy
-                else:
-                    det_y = self.k_xy * pnt_x + self.b_xy
-                    if det_y - tolerance <= pnt_y <= det_y + tolerance:
-                        return True
-                    else:
-                        return False
-            # point is out of ply's extent
-            else:
-                return False
-        # the spatial index between point and ply is not equal
+        # get k value
+        originK = self.k_xy
+        if originK == -999:
+            k = 0
+        elif -0.0001 <= originK <= 0.0001:
+            k = -999
         else:
-            return False
+            k = -1 / originK
 
-    def generateSpatialIndex(self, totalExtent):
-        """
-        usage: generate spatial index, now is generate 10*10 grid index.
+        # origin line is y = n
+        if k == -999:
+            # x = n (k is infinity)
+            originY = self.k_xy * x + self.b_xy
+            dis_xy = abs(y - originY)
+            interY = self.b_xy
+            interX = y
+            interZ = self.calculateZCoord_yz(interX, interY)
+        # origin line is x = n (k is -999, b is -999)
+        elif k == 0:
+            dis_xy = abs(x - self.extent_xmin)
+            interY = y
+            interX = self.extent_xmin
+            interZ = self.calculateZCoord_yz(interX, interY)
+        else:
+            b = y - k * x
+            calX = self.extent_xmin
+            calY = k * calX + b
+            calZ = self.calculateZCoord_yz(calX, calY)
 
-        index number as this:
-         ----------
-        |1,10|...|1,2|1,1|
-         ----------
-        |2,10|...|2,2|2,1|
-         ----------
-        |...........|
-        |.          |
-        |.          |
-         -----------
-        |10,10|...|10,2|10,1|
+            ext = (min(x, calX), min(y, calY), max(x, calX), max(y, calY))
 
-        :param totalExtent: (xmin, ymin, xmax, ymax)
-        :return:
-        """
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / 10), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / 10), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
+            # calculate the point of intersect between line and it's vertical line
+            newlineObj = lineEquation((x, y, z), (calX, calY, calZ), ext)
+            interX, interY = self.calculateIntersect(newlineObj)
+            interZ = self.calculateZCoord_yz(interX, interY)
 
-        self.spaind_totalext = totalExtent
+            # calculate x, y, z in the point of intersect between two line obj
+            dis_xy = math.sqrt((y - interY) ** 2 + (x - interX) ** 2)
 
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("xxxx1xxxx")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("xxxx2xxxx")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("xxxx3xxxx")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("xxxx4xxxx")
-            _addError("Error --- generate spatial index failed, "
-                      "line object's extent is not in total extent. "
-                      "the line's first point is ({}, {})".format(self.x1, self.y1))
-            _addError("total extent is {}".format(totalExtent))
-            _addError("ply extent is {}".format(self.extent))
-            raise GenerateSpatialIndexError
+        if interZ != -999:
+            dis = math.sqrt(dis_xy ** 2 + (z - interZ) ** 2)
+        else:
+            dis = dis_xy
 
-        find_key = False
-        for i in range(1, 11):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if self.extent_ymax >= total_ext_ymax - i * spaindex_step_y:
-                self.spaindex_row = str(i)
-                for j in range(1, 11):
-                    if self.extent_xmax >= total_ext_xmax - j * spaindex_step_x:
-                        self.spaindex_col = str(j)
-                        self.spaindex = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-        return self
+        return dis
+
+
+# ---------- show message in toolbox ----------
+
+def _addMessage(mes: str) -> None:
+    print(mes)
+    arcpy.AddMessage(mes)
+    return None
+
+
+def _addWarning(mes: str) -> None:
+    print(mes)
+    arcpy.AddWarning(mes)
+    return None
+
+
+def _addError(mes: str) -> None:
+    print(mes)
+    arcpy.AddError(mes)
+    return None
+
+
+def getRunTime(func):
+    @functools.wraps(func)
+    def _wrapper(*args, **kwargs):
+        print(f"Method {func.__name__} start running ! ")
+        start = datetime.datetime.now()
+        res = func(*args, **kwargs)
+        stop = datetime.datetime.now()
+        cost = stop - start
+        print("*" * 30)
+        print(f"Method {func.__name__} start at {start}")
+        print(f"Method {func.__name__} finish at {stop}")
+        print(f"Method {func.__name__} total cost {cost}")
+        print("*" * 30)
+        return res
+
+    return _wrapper
+
+
+# ---------- data fields process ----------
+
+def _addField(*args, **kwargs):
+    try:
+        arcpy.AddField_management(*args, **kwargs)
+    except:
+        arcpy.DeleteField_management(*(args[:2]))
+        arcpy.AddField_management(*args, **kwargs)
+
+
+def addFiled(inFC: str, fieldName: str, fieldType: str, fieldLength: int = None, fieldPrec: int = None) -> str:
+    if fieldLength:
+        if fieldPrec:
+            _addField(inFC, fieldName, fieldType, field_length=fieldLength, field_precision=fieldPrec)
+        else:
+            _addField(inFC, fieldName, fieldType, field_length=fieldLength)
+    else:
+        _addField(inFC, fieldName, fieldType)
+    return inFC
+
+
+# add a filed named "unic_id_" and calculate the unic id
+def _addUnicIDField(inFeaShp: str, startNum: int) -> str:
+    _addField(inFeaShp, "unic_id_", "LONG")
+    codes = """a = 0
+def calUnicField():
+    global a
+    a += 1
+    return a"""
+    arcpy.CalculateField_management(inFeaShp, "unic_id_", "calUnicField()", "PYTHON3", codes)
+    return inFeaShp
+
+
+# add coord fields
+def _addCoordFields(inFC, feaType):
+    fieldList = []
+    expList = []
+    if feaType == "point":
+        fieldList = ["x_cen_", "y_cen_", "z_cen_"]
+        expList = ["!shape.centroid.X!", "!shape.centroid.Y!", "!shape.centroid.Z!"]
+    elif feaType == "line":
+        fieldList = ["x_f_", "y_f_", "z_f_", "x_l_", "y_l_", "z_l_"]
+        expList = ["!shape.firstPoint.X!", "!shape.firstPoint.Y!", "!shape.firstPoint.Z!",
+                   "!shape.lastPoint.X!", "!shape.lastPoint.Y!", "!shape.lastPoint.Z!"]
+
+    assert len(fieldList) > 0 and len(expList) > 0, f"Parameter 'feaType' --- {feaType} is not available"
+
+    for i, each in enumerate(fieldList):
+        _addField(inFC, each, "DOUBLE")
+        arcpy.CalculateField_management(inFC, each, expList[i], "PYTHON3")
+
+
+# --------------------------------- detect -----------------------------------
+
+def fieldExist(inFC, fieldName):
+    fieldList = arcpy.ListFields(inFC, fieldName)
+    fieldCount = len(fieldList)
+    if fieldCount == 1:
+        return True
+    else:
+        return False
+
+
+# get all feature count
+def get_feature_count(feature_class, query):
+    fields = arcpy.ListFields(feature_class)
+    count = 0
+
+    with arcpy.da.SearchCursor(feature_class, str(fields[0].name), query) as cursor:
+        for row in cursor:
+            count += 1
+
+    return count
+
+
+# statistic unic value of table
+def unique_values(table, field):
+    with arcpy.da.SearchCursor(table, [field]) as cursor:
+        return sorted({row[0] for row in cursor})
+
+
+def _copyFeature(inFC: str, outputPath: str, outputName: str) -> str:
+    # keep origin workspace
+    oriWS = None
+    if arcpy.env.workspace:
+        oriWS = arcpy.env.workspace
+
+    folderType = arcpy.Describe(outputPath).dataType
+    if folderType == "Workspace":
+        if outputName[-4:] == ".shp":
+            outputName = outputName[:-4]
+    # .sde like directory
+    elif folderType == "File":
+        if outputName[-4:] == ".shp":
+            outputName = outputName[:-4]
+    else:
+        if not outputName[-4:] == ".shp":
+            outputName = outputName + ".shp"
+
+    arcpy.CopyFeatures_management(inFC, os.path.join(outputPath, outputName))
+
+    try:
+        if oriWS:
+            arcpy.env.workspace = oriWS
+        else:
+            arcpy.ClearEnvironment("workspace")
+    except:
+        pass
+
+    return os.path.join(outputPath, outputName)
+
+
+# 带参装饰器，用于将函数执行时的 arcgis 工作空间和函数外的工作空间隔离开来
+# 将需要设置工作空间的函数上加上该装饰器，并将函数整体外再嵌套一层大函数，用于动态传递工作空间即可
+def setTempWorkspace(workspace):
+    def _inner(func):
+        @functools.wraps(func)
+        def _wrapper(*args, **kwargs):
+            # keep origin workspace
+            oriWS = None
+            if arcpy.env.workspace:
+                oriWS = arcpy.env.workspace
+
+            arcpy.env.workspace = workspace
+            res = func(*args, **kwargs)
+
+            try:
+                if oriWS:
+                    arcpy.env.workspace = oriWS
+                else:
+                    arcpy.ClearEnvironment("workspace")
+            except:
+                pass
+            return res
+
+        return _wrapper
+
+    return _inner
+
+
+# 设置临时工作空间的带参装饰器的使用示例
+def demo_temp_workspace(outputPath, outputName):
+    @setTempWorkspace(outputPath)
+    def _wrapper(outputPath, outputName):
+        print("当前环境为：", arcpy.env.workspace)
+        print("输出数据名为：", availableDataName(outputPath, outputName))
+
+    res = _wrapper(outputPath, outputName)
+    print("当前环境为：", arcpy.env.workspace)
+    return res
+
+
+def availableDataName(outputPath: str, outputName: str) -> str:
+    @setTempWorkspace(outputPath)
+    def _wrapper(outputPath: str, outputName: str) -> str:
+        folderType = arcpy.Describe(outputPath).dataType
+        if folderType == "Workspace":
+            if outputName[-4:] == ".shp":
+                outputName = outputName[:-4]
+        # .sde like directory
+        elif folderType == "File":
+            if outputName[-4:] == ".shp":
+                outputName = outputName[:-4]
+        else:
+            if not outputName[-4:] == ".shp":
+                outputName = outputName + ".shp"
+
+        return os.path.join(outputPath, outputName)
+
+    res = _wrapper(outputPath, outputName)
+    return res
+
+
+outputPath = r"D:\a\test.gdb"
+outputName = "test"
+demo_temp_workspace(outputPath, outputName)
