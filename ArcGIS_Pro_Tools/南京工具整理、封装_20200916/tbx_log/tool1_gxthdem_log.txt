@@ -1,0 +1,210 @@
+
+
+ *** 
+ 2020-09-16 16:53:53,344    DEBUG ==== Module import success 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:53,344    INFO ====  ======================== Start ======================== 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:53,344    DEBUG ====  --- 
+ inDEM: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem 
+ inFC: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp 
+ outputPath: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res 
+ outputName: test 
+ QDMS: QDMS 
+ ZDMS: ZDMS 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:53,344    INFO ==== Step1 --- start interpolate 3d to feature class. 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:53,344    INFO ====  ======================== Start Function interShape3D ======================== 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:53,344    DEBUG ==== 
+ inDEM: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem 
+ inFC: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp 
+ outputPath: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res 
+ outputName: test_temp  
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,641    INFO ==== Step2 --- add and calculate format field. 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,641    DEBUG ====  ------ start function addFormatField ------ 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,641    DEBUG ====  --- 
+ inFC: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res\test_temp.shp 
+ QDMS: QDMS 
+ ZDMS: ZDMS 
+ 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,641    DEBUG ==== start add field_0 ori_z_f 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,754    DEBUG ==== success add field ori_z_f, and start calculate it by expression !shape.firstPoint.z! 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,897    DEBUG ==== success calculate filed ori_z_f 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,897    DEBUG ==== start add field_1 ori_z_l 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:54,982    DEBUG ==== success add field ori_z_l, and start calculate it by expression !shape.lastPoint.z! 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,133    DEBUG ==== success calculate filed ori_z_l 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,133    DEBUG ==== start add field_2 tar_z_f 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,232    DEBUG ==== success add field tar_z_f, and start calculate it by expression !ori_z_f! - !QDMS! 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,356    DEBUG ==== success calculate filed tar_z_f 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,356    DEBUG ==== start add field_3 tar_z_l 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,442    DEBUG ==== success add field tar_z_l, and start calculate it by expression !ori_z_l! - !ZDMS! 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,562    DEBUG ==== success calculate filed tar_z_l 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,562    INFO ==== Step3 --- convert data to 3d type 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,562    DEBUG ====  ------ start function convertTo3DWithAttr ------ 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,562    DEBUG ====  --- 
+ inFC: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res\test_temp.shp 
+ outputPath: E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res 
+ outputName: test 
+ 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,568    DEBUG ==== start process feature class to 3d 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-16 16:53:55,639    ERROR ==== ERROR 000258: Output E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res\test.shp already exists
+Cannot acquire a schema lock because of an existing lock. [
+Computer: GIS0421, Process: 12672 (ArcGISPro)
+Computer: GIS0421, Process: 12672 (ArcGISPro)
+Computer: GIS0421, Process: 12672 (ArcGISPro)
+Computer: GIS0421, Process: 12672 (ArcGISPro)]
+No spatial reference exists.
+No spatial reference exists.
+No spatial reference exists.
+Failed to execute (FeatureTo3DByAttribute).
+ 
+ *** 
+
+

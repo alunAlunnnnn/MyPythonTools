@@ -1,8 +1,11 @@
+import pprint
+import inspect
 import arcpy
 import os
 import functools
 import datetime
 import math
+import logging
 
 
 # points type is not tuple
@@ -447,6 +450,7 @@ def demo_temp_workspace(outputPath, outputName):
     return res
 
 
+# auto create a available name for feature classes
 def availableDataName(outputPath: str, outputName: str) -> str:
     @setTempWorkspace(outputPath)
     def _wrapper(outputPath: str, outputName: str) -> str:
@@ -468,6 +472,103 @@ def availableDataName(outputPath: str, outputName: str) -> str:
     return res
 
 
-outputPath = r"D:\a\test.gdb"
-outputName = "test"
-demo_temp_workspace(outputPath, outputName)
+# outputPath = r"D:\a\test.gdb"
+# outputName = "test"
+# demo_temp_workspace(outputPath, outputName)
+
+
+def test(para1: str, para2: str) -> str:
+    pass
+
+def test1(para1, para2):
+    pass
+
+def qq(aa, bb, c, d):
+    print(locals())
+    # print(args)
+    # print(type(args))
+    # print(kwargs)
+    # print(type(kwargs))
+
+qq(1,2,c=3,d=4)
+
+# print(test.__annotations__)
+inspect.signature(test)
+inspect.signature(test1)
+sig = inspect.signature(test1)
+print(sig.parameters)
+parameters = [each.strip() for each in str(inspect.signature(qq))[1:-1].split(",")]
+print(parameters)
+
+
+# logging 装饰器
+def logIt(func):
+    @functools.wraps(func)
+    def _wrapper(*args, **kwargs):
+        logging.info(f" ======================== Start Function {func.__name__} ========================")
+        parameters = [each.strip() for each in str(inspect.signature(func))[1:-1].split(",")]
+        keyPara = kwargs
+        for eachKey in keyPara:
+            eachKey = eachKey.strip()
+            if eachKey in parameters:
+                parameters.remove(eachKey)
+
+        mes = ""
+        for i, eachPara in enumerate(parameters):
+            mes += f"\n {eachPara}: {args[i]} "
+
+        for eachKey, eachValue in keyPara.items():
+            mes += f"\n {eachKey}: {eachValue} "
+
+        logging.debug(mes)
+        res = func(*args, **kwargs)
+
+        return res
+
+    return _wrapper
+
+
+
+### 代码块区域
+
+# ## ArcGIS Pro工具箱日志初始化
+# import sys
+# import os
+# import logging
+#
+# # get arcgis pro toolbox directory
+# tbxDir = os.path.dirname(sys.argv[0])
+#
+# # create log directory
+# logDir = os.path.join(tbxDir, "tbx_log")
+# try:
+#     if not os.path.exists(logDir):
+#         os.makedirs(logDir)
+# except:
+#     pass
+#
+# # make sure this script have rights to create file here
+# createFileRights = False
+# fileRightTest = os.path.join(logDir, "t_t_.txt")
+# logFile = os.path.join(logDir, "tool1_gxthdem_log.txt")
+# try:
+#     with open(fileRightTest, "w", encoding="utf-8") as f:
+#         f.write("create file rights test")
+#     rights = True
+# except:
+#     rights = False
+#
+# if createFileRights:
+#     logging.basicConfig(filename=logFile, filemode="w", level=logging.DEBUG,
+#                         format="\n\n *** \n %(asctime)s    %(levelname)s ==== %(message)s \n *** \n\n")
+# else:
+#     logging.basicConfig(level=logging.DEBUG,
+#                         format="\n\n *** \n %(asctime)s    %(levelname)s ==== %(message)s \n *** \n\n")
+#
+# try:
+#     import arcpy
+#     import functools
+#
+#     logging.debug("Module import success")
+# except BaseException as e:
+#     logging.error(str(e))
