@@ -260,20 +260,20 @@ def main(inDEM, inFC, outputPath, outputName, QDMS, ZDMS):
         pass
 
 
-# inDEM = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem"
-# inFC = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp"
-# outputPath = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res"
-# outputName = "test"
-# QDMS = "QDMS"
-# ZDMS = "ZDMS"
+inDEM = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\0813现状.dem"
+inFC = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\line.shp"
+outputPath = r"E:\南京工具\工具交活整理_0916\测试数据\工具1_DEM起伏\res"
+outputName = "test"
+QDMS = "QDMS"
+ZDMS = "ZDMS"
 
 
-inDEM = arcpy.GetParameterAsText(0)
-inFC = arcpy.GetParameterAsText(1)
-QDMS = arcpy.GetParameterAsText(2)
-ZDMS = arcpy.GetParameterAsText(3)
-outputPath = arcpy.GetParameterAsText(4)
-outputName = arcpy.GetParameterAsText(5)
+# inDEM = arcpy.GetParameterAsText(0)
+# inFC = arcpy.GetParameterAsText(1)
+# QDMS = arcpy.GetParameterAsText(2)
+# ZDMS = arcpy.GetParameterAsText(3)
+# outputPath = arcpy.GetParameterAsText(4)
+# outputName = arcpy.GetParameterAsText(5)
 
 if __name__ == "__main__":
     try:

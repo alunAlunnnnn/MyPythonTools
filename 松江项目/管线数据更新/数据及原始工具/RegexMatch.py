@@ -3,7 +3,7 @@ import re
 
 def GetNewTableName(data):
     resDic = {}
-    with open(data, "r") as f:
+    with open(data, "r", encoding="utf-8") as f:
         lines = f.readlines()
         i = 0
         for each in lines:
@@ -26,6 +26,6 @@ def GetNewTableName(data):
             i += 1
     return resDic
 
-tabNameTxt = "D:/tablename.txt"
+tabNameTxt = r"D:\gxce\tablename.txt"
 res = GetNewTableName(tabNameTxt)
 print(res)
