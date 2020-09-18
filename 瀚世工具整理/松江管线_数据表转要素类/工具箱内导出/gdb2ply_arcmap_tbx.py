@@ -513,7 +513,6 @@ outPath = arcpy.GetParameterAsText(14)
 outName = arcpy.GetParameterAsText(15)
 
 
-
 # gdb = r"E:\arcmapTest\progress\process_1.gdb"
 # outPath = r"E:\arcmapTest\res"
 # outName = "v"
@@ -527,31 +526,6 @@ outName = arcpy.GetParameterAsText(15)
 # gdb = gdb.decode(codeType)
 # outPath = outPath.decode(codeType)
 # outName = outName.decode(codeType)
-
-# gdb = gdb.decode(codeType)
-# outPath = outPath.decode(codeType)
-# outName = outName.decode(codeType)
-
-codeType = "gbk"
-# input gdb file
-gdb = gdb.decode(codeType)
-# para in pnt table
-fieldX = fieldX.decode(codeType)
-fieldY = fieldY.decode(codeType)
-fieldSerialNumber = fieldSerialNumber.decode(codeType)
-# para in ply table
-firPntIDField = firPntIDField.decode(codeType)
-secPntIDField = secPntIDField.decode(codeType)
-plyIDField = plyIDField.decode(codeType)
-ply2zExpress_1 = ply2zExpress_1.decode(codeType)
-ply2zExpress_2 = ply2zExpress_2.decode(codeType)
-defaultValue = defaultValue.decode(codeType)
-# comman para
-spatialReferencePRJ = spatialReferencePRJ.decode(codeType)
-tabNameTxt = tabNameTxt.decode(codeType)
-# output data
-outPath = outPath.decode(codeType)
-outName = outName.decode(codeType)
 
 arcpy.env.workspace = gdb
 fieldH = ""
@@ -588,3 +562,4 @@ ClearPlyField(resGDB, plyList)
 
 arcpy.CheckInExtension("3D")
 arcpy.CheckInExtension("spatial")
+
