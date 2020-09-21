@@ -4,6 +4,7 @@ import arcpy
 import functools
 import datetime
 import arcpy.da
+import re
 
 arcpy.env.overwriteOutput = True
 
@@ -235,7 +236,7 @@ class lineEquation:
     def pointTouchDet(self, pnt, tolerance, totalExtent):
         """
         usage: used to detect that, the point is in the line with a tolerance num.
-                before use this, please call the function "generateSpatialIndex()" yet
+                before use this, please call the function "generateSpatialIndex()" first
         :param pnt:(x, y)
         :param tolerance:
         :return:
@@ -284,6 +285,10 @@ class lineEquation:
 
         # no spatial index, no calculate
         assert pnt_index, "there are no spatial index in point"
+
+        # set a default tolerance if None is inputed
+        if tolerance is None:
+            tolerance = math.sqrt((self.y2 - self.y1) ** 2 + (self.x2 - self.x1) ** 2) / 10000
 
         # match spatial index
         if pnt_index == self.spaindex:
@@ -346,8 +351,8 @@ class lineEquation:
         """
         spatialIndex_x = 1
         spatialIndex_y = 1
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
+        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 8) + 0.00001
+        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 8) + 0.00001
         total_ext_ymax = totalExtent[3]
         total_ext_xmax = totalExtent[2]
 
@@ -627,12 +632,60 @@ def initProcessFC(inFC, outputPath):
     return res
 
 
+def getFullExtentOfFC(inFC):
+    with arcpy.da.SearchCursor(inFC, ["SHAPE@"]) as cur:
+        xMinList, yMinList, xMaxList, yMaxList = [], [], [], []
+        for row in cur:
+            xMinList.append(row[0].extent.XMin)
+            yMinList.append(row[0].extent.YMin)
+            xMaxList.append(row[0].extent.XMax)
+            yMaxList.append(row[0].extent.YMax)
+    xMin, yMin, xMax, yMax = min(xMinList), min(yMinList), max(xMaxList), max(yMaxList)
+    res = (xMin, yMin, xMax, yMax)
+
+    return res
+
+
+def getCoordFromWKT(WKTString):
+    obj = re.search('[\(].*', WKTString)
+    if obj:
+        tarStr = " " + obj.group()[2:-2]
+        tempList = [each[1:] for each in tarStr.split(",") if each.startswith(" ")]
+        coordList = [tuple(map(float, each.split(" "))) for each in tempList]
+
+        return coordList
+    else:
+        _addError("")
+        raise
+
+
+def getPntIndexOfLinePart(lineCoordList, pntCoord, plyExtent):
+    pntNum = len(lineCoordList)
+    for i in range(pntNum - 1):
+        j = i + 1
+
+        x1, y1 = lineCoordList[i]
+        x2, y2 = lineCoordList[j]
+
+        lineObj = lineEquation((x1, y1, 0), (x2, y2, 0),
+                               (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
+        lineObj.generateSpatialIndex(plyExtent)
+        detRes = lineObj.pointTouchDet(pntCoord, None, plyExtent)
+        if detRes:
+            return (i, j)
+    else:
+        _addError("Point is not touch any part of the line selected")
+        raise
+
+
 def main(inPnt, inPly, outputPath):
     processPnt, pntFeaCount = initProcessFC(inPnt, outputPath)
     processPly, plyFeaCount = initProcessFC(inPly, outputPath)
 
     print(pntFeaCount)
     print(plyFeaCount)
+
+    plyExt = getFullExtentOfFC(processPly)
 
     for i in range(1, pntFeaCount + 1):
         pntLyr = arcpy.MakeFeatureLayer_management(processPnt, "pnt_lyr")
@@ -641,16 +694,26 @@ def main(inPnt, inPly, outputPath):
             plyLyr = arcpy.MakeFeatureLayer_management(processPly, "ply_lyr")
             arcpy.SelectLayerByAttribute_management(plyLyr, "NEW_SELECTION", "unic_id_={}".format(j))
 
-            # get the nearest point from road line to school
+            # (x, y) --- x, y is Double --- get the nearest point from road line to school
             nearCoord = getNearestPoint(pntLyr, plyLyr)
 
+            # get eachLine's coord
+            with arcpy.da.SearchCursor(plyLyr, ["SHAPE@WKT"]) as cur:
+                for row in cur:
+                    WKTString = row[0]
 
+            lineCoordList = getCoordFromWKT(WKTString)
 
+            # get the nearest point's left and right road vertices index
+            startPntIndex1, startPntIndex2 = getPntIndexOfLinePart(lineCoordList, nearCoord, plyExt)
+            print(nearCoord)
+            print(startPntIndex1, startPntIndex2)
 
 
 dataSchool = r"F:\ArcGIS_Dustbin\demo\school.shp"
 dataRoads = r"F:\ArcGIS_Dustbin\demo\roads.shp"
 outputPath = r"F:\ArcGIS_Dustbin\demo\res"
+s = 100
 
 if __name__ == "__main__":
     main(dataSchool, dataRoads, outputPath)
