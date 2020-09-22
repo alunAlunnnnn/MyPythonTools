@@ -5,7 +5,7 @@ arcpy.env.overwriteOutput = True
 
 data = r"E:\ArcGIS_Dustbin\cad\cadText.dwg"
 outputPath = r"E:\ArcGIS_Dustbin\cad\res"
-outputName = "GCD_CAD"
+outputName = "XBQY_CAD"
 
 # 实例化cad对象，需要cad保持打开状态
 acad = Autocad()
