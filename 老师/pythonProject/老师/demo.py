@@ -1,11 +1,29 @@
-import pprint
-import inspect
-import arcpy
+import math
 import os
+import arcpy
 import functools
 import datetime
-import math
-import logging
+import arcpy.da
+import re
+
+arcpy.env.overwriteOutput = True
+
+
+# ---------- line class ----------
+
+def _addMessage(mes):
+    print(mes)
+    arcpy.AddMessage(mes)
+
+
+def _addWarning(mes):
+    print(mes)
+    arcpy.AddWarning(mes)
+
+
+def _addError(mes):
+    print(mes)
+    arcpy.AddError(mes)
 
 
 # points type is not tuple
@@ -270,7 +288,7 @@ class lineEquation:
 
         # set a default tolerance if None is inputed
         if tolerance is None:
-            tolerance = math.sqrt((self.y2 - self.y1) ** 2 + (self.x2 - self.x1) ** 2) / 100
+            tolerance = math.sqrt((self.y2 - self.y1) ** 2 + (self.x2 - self.x1) ** 2) / 10000
 
         # match spatial index
         if pnt_index == self.spaindex:
@@ -333,8 +351,8 @@ class lineEquation:
         """
         spatialIndex_x = 1
         spatialIndex_y = 1
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
+        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 8) + 0.00001
+        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 8) + 0.00001
         total_ext_ymax = totalExtent[3]
         total_ext_xmax = totalExtent[2]
 
@@ -436,127 +454,84 @@ class lineEquation:
         return dis
 
 
-
-# ---------- show message in toolbox ----------
-
-def _addMessage(mes: str) -> None:
-    print(mes)
-    arcpy.AddMessage(mes)
-    return None
-
-
-def _addWarning(mes: str) -> None:
-    print(mes)
-    arcpy.AddWarning(mes)
-    return None
-
-
-def _addError(mes: str) -> None:
-    print(mes)
-    arcpy.AddError(mes)
-    return None
-
-
 def getRunTime(func):
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
-        print(f"Method {func.__name__} start running ! ")
         start = datetime.datetime.now()
+        print("Start function '{}' at : {}".format(func.__name__, start))
         res = func(*args, **kwargs)
-        stop = datetime.datetime.now()
-        cost = stop - start
+        end = datetime.datetime.now()
         print("*" * 30)
-        print(f"Method {func.__name__} start at {start}")
-        print(f"Method {func.__name__} finish at {stop}")
-        print(f"Method {func.__name__} total cost {cost}")
+        print("Start function '{}' at : {}".format(func.__name__, start))
+        print("Finish function '{}' at : {}".format(func.__name__, end))
+        print("Function '{}' total cost  at : {}".format(func.__name__, end - start))
         print("*" * 30)
         return res
 
     return _wrapper
 
 
-# ---------- data fields process ----------
+def setTempWorkspace(workspace):
+    def _inner(func):
+        @functools.wraps(func)
+        def _wrapper(*args, **kwargs):
+            # keep origin workspace
+            oriWS = None
+            if arcpy.env.workspace:
+                oriWS = arcpy.env.workspace
 
-def _addField(*args, **kwargs):
-    try:
-        arcpy.AddField_management(*args, **kwargs)
-    except:
-        arcpy.DeleteField_management(*(args[:2]))
-        arcpy.AddField_management(*args, **kwargs)
+            arcpy.env.workspace = workspace
+            res = func(*args, **kwargs)
+
+            try:
+                if oriWS:
+                    arcpy.env.workspace = oriWS
+                else:
+                    arcpy.ClearEnvironment("workspace")
+            except:
+                pass
+            return res
+
+        return _wrapper
+
+    return _inner
 
 
-def addFiled(inFC: str, fieldName: str, fieldType: str, fieldLength: int = None, fieldPrec: int = None) -> str:
-    if fieldLength:
-        if fieldPrec:
-            _addField(inFC, fieldName, fieldType, field_length=fieldLength, field_precision=fieldPrec)
+# auto create a available name for feature classes
+def availableDataName(outputPath, outputName):
+    @setTempWorkspace(outputPath)
+    def _wrapper(outputPath, outputName):
+        folderType = arcpy.Describe(outputPath).dataType
+        if folderType == "Workspace":
+            if outputName[-4:] == ".shp":
+                outputName = outputName[:-4]
+        # .sde like directory
+        elif folderType == "File":
+            if outputName[-4:] == ".shp":
+                outputName = outputName[:-4]
         else:
-            _addField(inFC, fieldName, fieldType, field_length=fieldLength)
-    else:
-        _addField(inFC, fieldName, fieldType)
-    return inFC
+            if not outputName[-4:] == ".shp":
+                outputName = outputName + ".shp"
+
+        return os.path.join(outputPath, outputName)
+
+    res = _wrapper(outputPath, outputName)
+    return res
 
 
 # add a filed named "unic_id_" and calculate the unic id
-def _addUnicIDField(inFeaShp: str, startNum: int) -> str:
+def _addUnicIDField(inFeaShp, startNum):
     _addField(inFeaShp, "unic_id_", "LONG")
-    codes = """a = 0
+    codes = """a = {}
 def calUnicField():
     global a
     a += 1
-    return a"""
-    arcpy.CalculateField_management(inFeaShp, "unic_id_", "calUnicField()", "PYTHON3", codes)
+    return a""".format(int(startNum) - 1)
+    arcpy.CalculateField_management(inFeaShp, "unic_id_", "calUnicField()", "PYTHON_9.3", codes)
     return inFeaShp
 
 
-# add coord fields
-def _addCoordFields(inFC, feaType):
-    fieldList = []
-    expList = []
-    if feaType == "point":
-        fieldList = ["x_cen_", "y_cen_", "z_cen_"]
-        expList = ["!shape.centroid.X!", "!shape.centroid.Y!", "!shape.centroid.Z!"]
-    elif feaType == "line":
-        fieldList = ["x_f_", "y_f_", "z_f_", "x_l_", "y_l_", "z_l_"]
-        expList = ["!shape.firstPoint.X!", "!shape.firstPoint.Y!", "!shape.firstPoint.Z!",
-                   "!shape.lastPoint.X!", "!shape.lastPoint.Y!", "!shape.lastPoint.Z!"]
-
-    assert len(fieldList) > 0 and len(expList) > 0, f"Parameter 'feaType' --- {feaType} is not available"
-
-    for i, each in enumerate(fieldList):
-        _addField(inFC, each, "DOUBLE")
-        arcpy.CalculateField_management(inFC, each, expList[i], "PYTHON3")
-
-
-# --------------------------------- detect -----------------------------------
-
-def fieldExist(inFC, fieldName):
-    fieldList = arcpy.ListFields(inFC, fieldName)
-    fieldCount = len(fieldList)
-    if fieldCount == 1:
-        return True
-    else:
-        return False
-
-
-# get all feature count
-def get_feature_count(feature_class, query):
-    fields = arcpy.ListFields(feature_class)
-    count = 0
-
-    with arcpy.da.SearchCursor(feature_class, str(fields[0].name), query) as cursor:
-        for row in cursor:
-            count += 1
-
-    return count
-
-
-# statistic unic value of table
-def unique_values(table, field):
-    with arcpy.da.SearchCursor(table, [field]) as cursor:
-        return sorted({row[0] for row in cursor})
-
-
-def _copyFeature(inFC: str, outputPath: str, outputName: str) -> str:
+def _copyFeature(inFC, outputPath, outputName):
     # keep origin workspace
     oriWS = None
     if arcpy.env.workspace:
@@ -587,165 +562,158 @@ def _copyFeature(inFC: str, outputPath: str, outputName: str) -> str:
     return os.path.join(outputPath, outputName)
 
 
-# 带参装饰器，用于将函数执行时的 arcgis 工作空间和函数外的工作空间隔离开来
-# 将需要设置工作空间的函数上加上该装饰器，并将函数整体外再嵌套一层大函数，用于动态传递工作空间即可
-def setTempWorkspace(workspace):
-    def _inner(func):
-        @functools.wraps(func)
-        def _wrapper(*args, **kwargs):
-            # keep origin workspace
-            oriWS = None
-            if arcpy.env.workspace:
-                oriWS = arcpy.env.workspace
-
-            arcpy.env.workspace = workspace
-            res = func(*args, **kwargs)
-
-            try:
-                if oriWS:
-                    arcpy.env.workspace = oriWS
-                else:
-                    arcpy.ClearEnvironment("workspace")
-            except:
-                pass
-            return res
-
-        return _wrapper
-
-    return _inner
+def _addField(*args, **kwargs):
+    try:
+        arcpy.AddField_management(*args, **kwargs)
+    except:
+        arcpy.DeleteField_management(*(args[:2]))
+        arcpy.AddField_management(*args, **kwargs)
 
 
-# 设置临时工作空间的带参装饰器的使用示例
-def demo_temp_workspace(outputPath, outputName):
-    @setTempWorkspace(outputPath)
-    def _wrapper(outputPath, outputName):
-        print("当前环境为：", arcpy.env.workspace)
-        print("输出数据名为：", availableDataName(outputPath, outputName))
-
-    res = _wrapper(outputPath, outputName)
-    print("当前环境为：", arcpy.env.workspace)
-    return res
-
-
-# auto create a available name for feature classes
-def availableDataName(outputPath: str, outputName: str) -> str:
-    @setTempWorkspace(outputPath)
-    def _wrapper(outputPath: str, outputName: str) -> str:
-        folderType = arcpy.Describe(outputPath).dataType
-        if folderType == "Workspace":
-            if outputName[-4:] == ".shp":
-                outputName = outputName[:-4]
-        # .sde like directory
-        elif folderType == "File":
-            if outputName[-4:] == ".shp":
-                outputName = outputName[:-4]
+def addFiled(inFC: str, fieldName: str, fieldType: str, fieldLength: int = None, fieldPrec: int = None) -> str:
+    if fieldLength:
+        if fieldPrec:
+            _addField(inFC, fieldName, fieldType, field_length=fieldLength, field_precision=fieldPrec)
         else:
-            if not outputName[-4:] == ".shp":
-                outputName = outputName + ".shp"
+            _addField(inFC, fieldName, fieldType, field_length=fieldLength)
+    else:
+        _addField(inFC, fieldName, fieldType)
+    return inFC
 
-        return os.path.join(outputPath, outputName)
 
-    res = _wrapper(outputPath, outputName)
+def _addIDField(inFeaShp, startNum):
+    addFiled(inFeaShp, "unic_id_", "LONG")
+    codes = """a = {}
+def calUnicField():
+    global a
+    a += 1
+    return a""".format(int(startNum) - 1)
+    arcpy.CalculateField_management(inFeaShp, "unic_id_", "calUnicField()", "PYTHON_9.3", codes)
+    return inFeaShp
+
+
+# count all features
+def getFeaCount(inFC):
+    num = int(arcpy.GetCount_management(inFC)[0])
+    return num
+
+
+# get the nearest point from road line to school
+def getNearestPoint(inPnt, inPly):
+    # make sure there are only once feature put into this method
+    assert getFeaCount(inPnt) == 1, "The feature number of point feature class is not 1"
+    assert getFeaCount(inPly) == 1, "The feature number of polyline feature class is not 1"
+
+    # save the nearest point coordinate into school point feature class's attribute
+    res = arcpy.Near_analysis(inPnt, inPly, location="LOCATION")
+    with arcpy.da.SearchCursor(res, ["NEAR_X", "NEAR_Y"]) as cur:
+        for row in cur:
+            x, y = row[0], row[1]
+
+    res = (x, y)
+    print(res)
+
     return res
 
 
-# outputPath = r"D:\a\test.gdb"
-# outputName = "test"
-# demo_temp_workspace(outputPath, outputName)
+def initProcessFC(inFC, outputPath):
+    @setTempWorkspace(outputPath)
+    def _wrapper(inFC, outputPath):
+        outputName = arcpy.Describe(inFC).name
+        startNum = 1
+        copyFC = _copyFeature(inFC, outputPath, outputName)
+        _addUnicIDField(copyFC, startNum)
+        pntCount = getFeaCount(copyFC)
+
+        return copyFC, pntCount
+
+    res = _wrapper(inFC, outputPath)
+
+    return res
 
 
-def test(para1: str, para2: str) -> str:
-    pass
+def getFullExtentOfFC(inFC):
+    with arcpy.da.SearchCursor(inFC, ["SHAPE@"]) as cur:
+        xMinList, yMinList, xMaxList, yMaxList = [], [], [], []
+        for row in cur:
+            xMinList.append(row[0].extent.XMin)
+            yMinList.append(row[0].extent.YMin)
+            xMaxList.append(row[0].extent.XMax)
+            yMaxList.append(row[0].extent.YMax)
+    xMin, yMin, xMax, yMax = min(xMinList), min(yMinList), max(xMaxList), max(yMaxList)
+    res = (xMin, yMin, xMax, yMax)
 
-def test1(para1, para2):
-    pass
-
-def qq(aa, bb, c, d):
-    print(locals())
-    # print(args)
-    # print(type(args))
-    # print(kwargs)
-    # print(type(kwargs))
-
-qq(1,2,c=3,d=4)
-
-# print(test.__annotations__)
-inspect.signature(test)
-inspect.signature(test1)
-sig = inspect.signature(test1)
-print(sig.parameters)
-parameters = [each.strip() for each in str(inspect.signature(qq))[1:-1].split(",")]
-print(parameters)
+    return res
 
 
-# logging 装饰器
-def logIt(func):
-    @functools.wraps(func)
-    def _wrapper(*args, **kwargs):
-        logging.info(f" ======================== Start Function {func.__name__} ========================")
-        parameters = [each.strip() for each in str(inspect.signature(func))[1:-1].split(",")]
-        keyPara = kwargs
-        for eachKey in keyPara:
-            eachKey = eachKey.strip()
-            if eachKey in parameters:
-                parameters.remove(eachKey)
+def getCoordFromWKT(WKTString):
+    obj = re.search('[\(].*', WKTString)
+    if obj:
+        tarStr = " " + obj.group()[2:-2]
+        tempList = [each[1:] for each in tarStr.split(",") if each.startswith(" ")]
+        coordList = [tuple(map(float, each.split(" "))) for each in tempList]
 
-        mes = ""
-        for i, eachPara in enumerate(parameters):
-            mes += f"\n {eachPara}: {args[i]} "
-
-        for eachKey, eachValue in keyPara.items():
-            mes += f"\n {eachKey}: {eachValue} "
-
-        logging.debug(mes)
-        res = func(*args, **kwargs)
-
-        return res
-
-    return _wrapper
+        return coordList
+    else:
+        _addError("")
+        raise
 
 
+def getPntIndexOfLinePart(lineCoordList, pntCoord, plyExtent):
+    pntNum = len(lineCoordList)
+    for i in range(pntNum - 1):
+        j = i + 1
 
-### 代码块区域
+        x1, y1 = lineCoordList[i]
+        x2, y2 = lineCoordList[j]
 
-# ## ArcGIS Pro工具箱日志初始化
-# import sys
-# import os
-# import logging
-#
-# # get arcgis pro toolbox directory
-# tbxDir = os.path.dirname(sys.argv[0])
-#
-# # create log directory
-# logDir = os.path.join(tbxDir, "tbx_log")
-# try:
-#     if not os.path.exists(logDir):
-#         os.makedirs(logDir)
-# except:
-#     pass
-#
-# # make sure this script have rights to create file here
-# createFileRights = False
-# fileRightTest = os.path.join(logDir, "t_t_.txt")
-# logFile = os.path.join(logDir, "tool1_gxthdem_log.txt")
-# try:
-#     with open(fileRightTest, "w", encoding="utf-8") as f:
-#         f.write("create file rights test")
-#     rights = True
-# except:
-#     rights = False
-#
-# if createFileRights:
-#     logging.basicConfig(filename=logFile, filemode="w", level=logging.DEBUG,
-#                         format="\n\n *** \n %(asctime)s    %(levelname)s ==== %(message)s \n *** \n\n")
-# else:
-#     logging.basicConfig(level=logging.DEBUG,
-#                         format="\n\n *** \n %(asctime)s    %(levelname)s ==== %(message)s \n *** \n\n")
-#
-# try:
-#     import arcpy
-#     import functools
-#
-#     logging.debug("Module import success")
-# except BaseException as e:
-#     logging.error(str(e))
+        lineObj = lineEquation((x1, y1, 0), (x2, y2, 0),
+                               (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
+        lineObj.generateSpatialIndex(plyExtent)
+        detRes = lineObj.pointTouchDet(pntCoord, None, plyExtent)
+        if detRes:
+            return (i, j)
+    else:
+        _addError("Point is not touch any part of the line selected")
+        raise
+
+
+def main(inPnt, inPly, outputPath):
+    processPnt, pntFeaCount = initProcessFC(inPnt, outputPath)
+    processPly, plyFeaCount = initProcessFC(inPly, outputPath)
+
+    print(pntFeaCount)
+    print(plyFeaCount)
+
+    plyExt = getFullExtentOfFC(processPly)
+
+    for i in range(1, pntFeaCount + 1):
+        pntLyr = arcpy.MakeFeatureLayer_management(processPnt, "pnt_lyr")
+        arcpy.SelectLayerByAttribute_management(pntLyr, "NEW_SELECTION", "unic_id_={}".format(i))
+        for j in range(1, plyFeaCount + 1):
+            plyLyr = arcpy.MakeFeatureLayer_management(processPly, "ply_lyr")
+            arcpy.SelectLayerByAttribute_management(plyLyr, "NEW_SELECTION", "unic_id_={}".format(j))
+
+            # (x, y) --- x, y is Double --- get the nearest point from road line to school
+            nearCoord = getNearestPoint(pntLyr, plyLyr)
+
+            # get eachLine's coord
+            with arcpy.da.SearchCursor(plyLyr, ["SHAPE@WKT"]) as cur:
+                for row in cur:
+                    WKTString = row[0]
+
+            lineCoordList = getCoordFromWKT(WKTString)
+
+            # get the nearest point's left and right road vertices index
+            startPntIndex1, startPntIndex2 = getPntIndexOfLinePart(lineCoordList, nearCoord, plyExt)
+            print(nearCoord)
+            print(startPntIndex1, startPntIndex2)
+
+
+dataSchool = r"F:\ArcGIS_Dustbin\demo\school.shp"
+dataRoads = r"F:\ArcGIS_Dustbin\demo\roads.shp"
+outputPath = r"F:\ArcGIS_Dustbin\demo\res"
+s = 100
+
+if __name__ == "__main__":
+    main(dataSchool, dataRoads, outputPath)
