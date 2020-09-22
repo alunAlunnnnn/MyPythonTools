@@ -37,7 +37,6 @@ class lineEquation:
 
         for each in args[:2]:
             if not isinstance(each, tuple):
-                _addMessage('Point coord is not tuple type')
                 raise pointError
 
             self.points.append((float(each[0]), float(each[1]), float(each[2])))
@@ -84,12 +83,8 @@ class lineEquation:
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
-            # _addWarning('ERROR --- calculate k_xy faild,'
-            #             ' x1 is equal to x2, x1 is {}. x2 is {}'.format(self.x1, self.x2))
-            # in math k is infinity / -infinity
             self.k_xy = -999
             return self
-            # raise calKError
         k = (self.y2 - self.y1) / (self.x2 - self.x1)
         self.k_xy = k
         return self
@@ -106,10 +101,8 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
-            # _addWarning('ERROR --- calculate k_yz faild, y1 is equal to y2. y1 is %s' % self.y1)
             self.k_yz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.y2 - self.y1)
         self.k_yz = k
         return self
@@ -126,10 +119,8 @@ class lineEquation:
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
-            # _addWarning('ERROR --- calculate k_xz faild, x1 is equal to x2. x1 is %s' % self.x1)
             self.k_xz = -999
             return self
-            # raise calKError
         k = (self.z2 - self.z1) / (self.x2 - self.x1)
         self.k_xz = k
         return self
@@ -214,173 +205,6 @@ class lineEquation:
         assert int(self.extent_ymin * 10 ** 8) <= int(
             self.extent_ymax * 10 ** 8), "Error --- Extent of line object is not available"
 
-    # detect the point can touch the line with a tolerance or not
-    def pointTouchDet(self, pnt, tolerance, totalExtent):
-        """
-        usage: used to detect that, the point is in the line with a tolerance num.
-                before use this, please call the function "generateSpatialIndex()" first
-        :param pnt:(x, y)
-        :param tolerance:
-        :return:
-        """
-        pnt_x, pnt_y = pnt[0], pnt[1]
-        pnt_index = None
-        spatialIndex_x = 1
-        spatialIndex_y = 1
-        # generate the spatial index for point
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
-
-        # detect whether is out of the ply's extent
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("pnt xxxx1xxxx pnt")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("pnt xxxx2xxxx pnt")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("pnt xxxx3xxxx pnt")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("pnt xxxx4xxxx pnt")
-            _addError("Error --- generate spatial index for point failed, "
-                      "the point is ({}, {})".format(pnt_x, pnt_y))
-            _addError("total extent is {}".format(totalExtent))
-            raise GenerateSpatialIndexError
-
-        find_key = False
-        # for i in range(1, 11):
-        for i in range(1, spatialIndex_y + 1):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if pnt_y >= total_ext_ymax - i * spaindex_step_y:
-                pnt_index_y = str(i)
-                # for j in range(1, 11):
-                for j in range(1, spatialIndex_x + 1):
-                    if pnt_x >= total_ext_xmax - j * spaindex_step_x:
-                        pnt_index_x = str(j)
-                        pnt_index = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-
-        # no spatial index, no calculate
-        assert pnt_index, "there are no spatial index in point"
-
-        # set a default tolerance if None is inputed
-        if tolerance is None:
-            tolerance = math.sqrt((self.y2 - self.y1) ** 2 + (self.x2 - self.x1) ** 2) / 100
-
-        # match spatial index
-        if pnt_index == self.spaindex:
-            # point is in the extent of polyline
-            if (self.extent_xmin - tolerance <= pnt_x <= self.extent_xmax + tolerance
-                    and self.extent_ymin - tolerance <= pnt_y <= self.extent_ymax + tolerance):
-                # point is in the extent of polyline
-                # detect whether the point is on the line
-
-                # vertical line
-                if self.k_xy == -999:
-                    if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                        if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # horizon line
-                elif self.k_xy == 0:
-                    if min(self.y1, self.y2) - tolerance <= pnt_y <= max(self.y1, self.y2) + tolerance:
-                        if min(self.x1, self.x2) - tolerance <= pnt_x <= max(self.x1, self.x2) + tolerance:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                # calculate the point in line with k_xy
-                else:
-                    det_y = self.k_xy * pnt_x + self.b_xy
-                    if det_y - tolerance <= pnt_y <= det_y + tolerance:
-                        return True
-                    else:
-                        return False
-            # point is out of ply's extent
-            else:
-                return False
-        # the spatial index between point and ply is not equal
-        else:
-            return False
-
-    def generateSpatialIndex(self, totalExtent):
-        """
-        usage: generate spatial index, now is generate 10*10 grid index.
-
-        index number as this:
-         ----------
-        |1,10|...|1,2|1,1|
-         ----------
-        |2,10|...|2,2|2,1|
-         ----------
-        |...........|
-        |.          |
-        |.          |
-         -----------
-        |10,10|...|10,2|10,1|
-
-        :param totalExtent: (xmin, ymin, xmax, ymax)
-        :return:
-        """
-        spatialIndex_x = 1
-        spatialIndex_y = 1
-        spaindex_step_x = round(float((totalExtent[2] - totalExtent[0]) / spatialIndex_x), 6) + 0.0001
-        spaindex_step_y = round(float((totalExtent[3] - totalExtent[1]) / spatialIndex_y), 6) + 0.0001
-        total_ext_ymax = totalExtent[3]
-        total_ext_xmax = totalExtent[2]
-
-        self.spaind_totalext = totalExtent
-
-        if (self.extent_xmax > totalExtent[2] + 0.0001 or self.extent_ymax > totalExtent[3] + 0.0001
-                or self.extent_xmin < totalExtent[0] - 0.0001 or self.extent_ymin < totalExtent[1] - 0.0001):
-            if self.extent_xmax > totalExtent[2] + 0.0001:
-                print("xxxx1xxxx")
-            if self.extent_ymax > totalExtent[3] + 0.0001:
-                print("xxxx2xxxx")
-            if self.extent_xmin < totalExtent[0] - 0.0001:
-                print("xxxx3xxxx")
-            if self.extent_ymin < totalExtent[1] - 0.0001:
-                print("xxxx4xxxx")
-            _addError("Error --- generate spatial index failed, "
-                      "line object's extent is not in total extent. "
-                      "the line's first point is ({}, {})".format(self.x1, self.y1))
-            _addError("total extent is {}".format(totalExtent))
-            _addError("ply extent is {}".format(self.extent))
-            raise GenerateSpatialIndexError
-
-        find_key = False
-        # for i in range(1, 11):
-        for i in range(1, spatialIndex_y + 1):
-            # if spatial index has finded, break the loop
-            if find_key:
-                break
-            if self.extent_ymax >= total_ext_ymax - i * spaindex_step_y:
-                self.spaindex_row = str(i)
-                # for j in range(1, 11):
-                for j in range(1, spatialIndex_y + 1):
-                    if self.extent_xmax >= total_ext_xmax - j * spaindex_step_x:
-                        self.spaindex_col = str(j)
-                        self.spaindex = (str(i) + "," + str(j))
-                        find_key = True
-                        break
-        return self
-
-    def setPipeSize(self, pipesize):
-        if isinstance(pipesize, int) or isinstance(pipesize, float):
-            self.pipeSize = pipesize
-        else:
-            _addWarning("Warning --- pipe size is not a number type, pipe size init failed")
-            self.pipeSize = None
-
     def calDisFromPnt(self, firstPoint):
         """
         usage: 使用第一个点坐标及 k 、 b 值来生成 line 对象
@@ -436,7 +260,6 @@ class lineEquation:
         return dis
 
 
-
 # ---------- show message in toolbox ----------
 
 def _addMessage(mes: str) -> None:
@@ -469,6 +292,24 @@ def getRunTime(func):
         print(f"Method {func.__name__} start at {start}")
         print(f"Method {func.__name__} finish at {stop}")
         print(f"Method {func.__name__} total cost {cost}")
+        print("*" * 30)
+        return res
+
+    return _wrapper
+
+
+# used in python2
+def getRunTime(func):
+    @functools.wraps(func)
+    def _wrapper(*args, **kwargs):
+        start = datetime.datetime.now()
+        print("Start function '{}' at : {}".format(func.__name__, start))
+        res = func(*args, **kwargs)
+        end = datetime.datetime.now()
+        print("*" * 30)
+        print("Start function '{}' at : {}".format(func.__name__, start))
+        print("Finish function '{}' at : {}".format(func.__name__, end))
+        print("Function '{}' total cost  at : {}".format(func.__name__, end - start))
         print("*" * 30)
         return res
 
