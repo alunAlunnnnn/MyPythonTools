@@ -678,6 +678,41 @@ def getPntIndexOfLinePart(lineCoordList, pntCoord, plyExtent):
         raise
 
 
+def generateServiceArea(sr, nearCoord, lineCorLst, startIndexLeft, startIndexRight):
+    pntLeft = lineCorLst[startIndexLeft]
+
+    # *** Directory1 --- from coord point to road's start point ***
+    coordsListLeft = [lineCorLst[i] for i in range(startIndexLeft, -1, -1)]
+    coordsListLeft.insert(0, nearCoord)
+    for i in range(len(coordsListLeft) - 1):
+        pntFrom = coordsListLeft[i]
+        pntTo = coordsListLeft[i + 1]
+        lenFirstLeft = math.sqrt((pntFrom[1] - pntTo[1]) ** 2 + (pntFrom[0] - pntTo[0]) ** 2)
+
+        # this is radians not degrees
+        alpha = math.asin((pntFrom[1] - pntTo[1]) / lenFirstLeft)
+
+        if lenFirstLeft < sr:
+            sp = sr - lenFirstLeft
+
+            rad = math.pi / 2 + alpha
+            yNew = sp * math.sin(rad) + pntTo[1]
+            xNew = sp * math.cos(rad) + pntTo[0]
+
+            rad = 3 * math.pi / 2 + alpha
+            yNew = sp * math.sin(rad) + pntTo[1]
+            xNew = sp * math.cos(rad) + pntTo[0]
+
+            sr -= lenFirstLeft
+        else:
+            yEndLeft = pntFrom[1] - sr * math.sin(alpha)
+            xEndLeft = pntFrom[0] - sr * math.cos(alpha)
+
+
+    # *** Directory2 --- from coord point to road's end point ***
+
+
+
 def main(inPnt, inPly, outputPath):
     processPnt, pntFeaCount = initProcessFC(inPnt, outputPath)
     processPly, plyFeaCount = initProcessFC(inPly, outputPath)
@@ -704,15 +739,21 @@ def main(inPnt, inPly, outputPath):
 
             lineCoordList = getCoordFromWKT(WKTString)
 
+            # get a copy
+            lineCorLst = lineCoordList[:]
+
+            print(lineCoordList)
             # get the nearest point's left and right road vertices index
             startPntIndex1, startPntIndex2 = getPntIndexOfLinePart(lineCoordList, nearCoord, plyExt)
             print(nearCoord)
             print(startPntIndex1, startPntIndex2)
+            print(lineCoordList)
 
 
-dataSchool = r"F:\ArcGIS_Dustbin\demo\school.shp"
-dataRoads = r"F:\ArcGIS_Dustbin\demo\roads.shp"
-outputPath = r"F:\ArcGIS_Dustbin\demo\res"
+
+dataSchool = r"..\demo\school.shp"
+dataRoads = r"..\demo\roads.shp"
+outputPath = r"..\demo\res"
 s = 100
 
 if __name__ == "__main__":
