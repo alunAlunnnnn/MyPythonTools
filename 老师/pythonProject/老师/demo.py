@@ -659,6 +659,15 @@ def getCoordFromWKT(WKTString):
         raise
 
 
+def createFeature(resData, coords, sr):
+    res = arcpy.CreateFeatureclass_management(os.path.dirname(resData), os.path.basename(resData), "POINT",
+                                              spatial_reference=sr)
+    with arcpy.da.InsertCursor(res, ["SHAPE@"]) as cur:
+        for each in coords:
+            cur.insertRow([each])
+    return res
+
+
 def getPntIndexOfLinePart(lineCoordList, pntCoord, plyExtent):
     pntNum = len(lineCoordList)
     for i in range(pntNum - 1):
@@ -678,12 +687,16 @@ def getPntIndexOfLinePart(lineCoordList, pntCoord, plyExtent):
         raise
 
 
-def generateServiceArea(sr, nearCoord, lineCorLst, startIndexLeft, startIndexRight):
-    pntLeft = lineCorLst[startIndexLeft]
+def generateServiceArea(sr, nearCoord, lineCorLst, startIndexLeft, startIndexRight, schoolCoord):
+    sr_right = sr
 
     # *** Directory1 --- from coord point to road's start point ***
     coordsListLeft = [lineCorLst[i] for i in range(startIndexLeft, -1, -1)]
     coordsListLeft.insert(0, nearCoord)
+    pnts_up = []
+    pnts_up_another = []
+    pnts_down = []
+    pnts_down_another = []
     for i in range(len(coordsListLeft) - 1):
         pntFrom = coordsListLeft[i]
         pntTo = coordsListLeft[i + 1]
@@ -691,29 +704,169 @@ def generateServiceArea(sr, nearCoord, lineCorLst, startIndexLeft, startIndexRig
 
         # this is radians not degrees
         alpha = math.asin((pntFrom[1] - pntTo[1]) / lenFirstLeft)
-
         if lenFirstLeft < sr:
             sp = sr - lenFirstLeft
 
             rad = math.pi / 2 + alpha
-            yNew = sp * math.sin(rad) + pntTo[1]
-            xNew = sp * math.cos(rad) + pntTo[0]
+            yNew_up = sp * math.sin(rad) + pntTo[1]
+            xNew_up = sp * math.cos(rad) + pntTo[0]
+            pnts_up.append((xNew_up, yNew_up))
+
+            yNew_up_another = sr * math.sin(rad) + pntFrom[1]
+            xNew_up_another = sr * math.cos(rad) + pntFrom[0]
+            pnts_up_another.append((xNew_up_another, yNew_up_another))
 
             rad = 3 * math.pi / 2 + alpha
-            yNew = sp * math.sin(rad) + pntTo[1]
-            xNew = sp * math.cos(rad) + pntTo[0]
+            yNew_down = sp * math.sin(rad) + pntTo[1]
+            xNew_down = sp * math.cos(rad) + pntTo[0]
+            pnts_down.append((xNew_down, yNew_down))
+
+            yNew_down_another = sr * math.sin(rad) + pntFrom[1]
+            xNew_down_another = sr * math.cos(rad) + pntFrom[0]
+            pnts_down_another.append((xNew_down_another, yNew_down_another))
 
             sr -= lenFirstLeft
         else:
             yEndLeft = pntFrom[1] - sr * math.sin(alpha)
             xEndLeft = pntFrom[0] - sr * math.cos(alpha)
+            (pnts_up_temp, pnts_up_another_temp) = (pnts_up[:], pnts_up_another[:])
 
+            (pnts_up, pnts_up_another) = (pnts_up_temp[-1::-1], pnts_up_another_temp[-1::-1])
+
+            # pnts_up.insert(0, (xEndLeft, yEndLeft))
+            # pnts_up_another.insert(0, (xEndLeft, yEndLeft))
+            pnts_down.append((xEndLeft, yEndLeft))
+            pnts_down_another.append((xEndLeft, yEndLeft))
+            break
+    # print("**********")
+    # print(pnts_up)
+    # print(pnts_up_another)
+    # print(pnts_down)
+    # print(pnts_down_another)
+    # print("*********")
+    pnts_down_l = pnts_down[:]
+    pnts_down_another_l = pnts_down_another[:]
+
+    totalPnts = []
+    totalPnts_another = []
+
+    # *** the position of school
+    dis = math.sqrt((schoolCoord[1] - nearCoord[1]) ** 2 + (schoolCoord[0] - nearCoord[0]) ** 2)
+    alpha_s = math.asin((schoolCoord[1] - nearCoord[1]) / dis)
+    print(math.degrees(alpha_s))
+    print(schoolCoord)
+    print(nearCoord)
+
+
+    # school on the right
+    if nearCoord[0] > schoolCoord[0]:
+        alpha_s = math.pi - alpha_s
+
+    yNew_Middle = sr_right * math.sin(alpha_s) + nearCoord[1]
+    xNew_Middle = sr_right * math.cos(alpha_s) + nearCoord[0]
+
+    alpha_s = alpha_s + math.pi
+    yNew_Middle_another = sr_right * math.sin(alpha_s) + nearCoord[1]
+    xNew_Middle_another = sr_right * math.cos(alpha_s) + nearCoord[0]
+
+
+
+    pnts_up.append((xNew_Middle, yNew_Middle))
+    pnts_up_another.append((xNew_Middle, yNew_Middle))
+
+    totalPnts += pnts_up
+    totalPnts_another += pnts_up_another
 
     # *** Directory2 --- from coord point to road's end point ***
+    sr = sr_right
+    num = len(lineCorLst)
+    coordsListRight = [lineCorLst[i] for i in range(startIndexRight, num)]
+    coordsListRight.insert(0, nearCoord)
+    pnts_up = []
+    pnts_up_another = []
+    pnts_down = []
+    pnts_down_another = []
+    for i in range(len(coordsListRight) - 1):
+        pntFrom = coordsListRight[i]
+        pntTo = coordsListRight[i + 1]
+        lenFirstLeft = math.sqrt((pntTo[1] - pntFrom[1]) ** 2 + (pntTo[0] - pntFrom[0]) ** 2)
+
+        # this is radians not degrees
+        alpha = math.asin((pntTo[1] - pntFrom[1]) / lenFirstLeft)
+        if lenFirstLeft < sr:
+            sp = sr - lenFirstLeft
+
+            rad = math.pi / 2 + alpha
+            yNew_up = sp * math.sin(rad) + pntTo[1]
+            xNew_up = sp * math.cos(rad) + pntTo[0]
+            pnts_up.append((xNew_up, yNew_up))
+
+            yNew_up_another = sr * math.sin(rad) + pntFrom[1]
+            xNew_up_another = sr * math.cos(rad) + pntFrom[0]
+            pnts_up_another.append((xNew_up_another, yNew_up_another))
+
+            rad = 3 * math.pi / 2 + alpha
+            yNew_down = sp * math.sin(rad) + pntTo[1]
+            xNew_down = sp * math.cos(rad) + pntTo[0]
+            pnts_down.append((xNew_down, yNew_down))
+
+            yNew_down_another = sr * math.sin(rad) + pntFrom[1]
+            xNew_down_another = sr * math.cos(rad) + pntFrom[0]
+            pnts_down_another.append((xNew_down_another, yNew_down_another))
+
+            sr -= lenFirstLeft
+        else:
+            yEndLeft = pntFrom[1] + sr * math.sin(alpha)
+            xEndLeft = pntFrom[0] + sr * math.cos(alpha)
+            (pnts_down_temp, pnts_down_another_temp) = (pnts_down[:], pnts_down_another[:])
+
+            (pnts_down, pnts_down_another) = (pnts_down_temp[-1::-1], pnts_down_another_temp[-1::-1])
+
+            # pnts_up.append((xEndLeft, yEndLeft))
+            # pnts_up_another.insert(0, (xEndLeft, yEndLeft))
+            pnts_down.insert(0, (xEndLeft, yEndLeft))
+            pnts_down_another.insert(0, (xEndLeft, yEndLeft))
+            break
+    print("**********")
+    print(pnts_up)
+    print(pnts_up_another)
+    print(pnts_down)
+    print(pnts_down_another)
+    print("*********")
+    totalPnts += pnts_up
+    totalPnts += pnts_down
+    totalPnts.append((xNew_Middle_another, yNew_Middle_another))
+    totalPnts += pnts_down_l
+
+    totalPnts_another += pnts_up_another
+    totalPnts_another += pnts_down_another
+    totalPnts_another.append((xNew_Middle_another, yNew_Middle_another))
+    totalPnts_another += pnts_down_another_l
+
+    print(totalPnts)
+    print(totalPnts_another)
+
+    # totalPnts --- from school to the road end
+    # totalPnts_another --- from the road end to the school
+    return totalPnts, totalPnts_another
 
 
+def pointsToPlg(pntFC, outputData):
+    addFiled(pntFC, "sort_", "SHORT")
+    addFiled(pntFC, "line_", "SHORT")
+    codes = """a = 0
+def f():
+    global a
+    a += 1
+    return a"""
+    arcpy.CalculateField_management(pntFC, "sort_", "f()", "PYTHON_9.3", codes)
+    arcpy.CalculateField_management(pntFC, "line_", "1", "PYTHON_9.3")
+    res = arcpy.PointsToLine_management(pntFC, outputData, "line_", "sort_", "CLOSE")
+    return res
 
-def main(inPnt, inPly, outputPath):
+
+def main(inPnt, inPly, outputPath, outputName, s):
+    global spatialReference
     processPnt, pntFeaCount = initProcessFC(inPnt, outputPath)
     processPly, plyFeaCount = initProcessFC(inPly, outputPath)
 
@@ -725,12 +878,21 @@ def main(inPnt, inPly, outputPath):
     for i in range(1, pntFeaCount + 1):
         pntLyr = arcpy.MakeFeatureLayer_management(processPnt, "pnt_lyr")
         arcpy.SelectLayerByAttribute_management(pntLyr, "NEW_SELECTION", "unic_id_={}".format(i))
+        with arcpy.da.SearchCursor(pntLyr, ["SHAPE@"]) as cur:
+            for row in cur:
+                x = row[0].centroid.X
+                y = row[0].centroid.Y
+        schoolCoord = (x, y)
+
         for j in range(1, plyFeaCount + 1):
+            print(i, j)
             plyLyr = arcpy.MakeFeatureLayer_management(processPly, "ply_lyr")
             arcpy.SelectLayerByAttribute_management(plyLyr, "NEW_SELECTION", "unic_id_={}".format(j))
 
             # (x, y) --- x, y is Double --- get the nearest point from road line to school
             nearCoord = getNearestPoint(pntLyr, plyLyr)
+
+            nearDis = math.sqrt((schoolCoord[1] - nearCoord[1]) ** 2 + (schoolCoord[0] - nearCoord[0]) ** 2)
 
             # get eachLine's coord
             with arcpy.da.SearchCursor(plyLyr, ["SHAPE@WKT"]) as cur:
@@ -742,19 +904,38 @@ def main(inPnt, inPly, outputPath):
             # get a copy
             lineCorLst = lineCoordList[:]
 
-            print(lineCoordList)
+            # print(lineCoordList)
             # get the nearest point's left and right road vertices index
             startPntIndex1, startPntIndex2 = getPntIndexOfLinePart(lineCoordList, nearCoord, plyExt)
-            print(nearCoord)
-            print(startPntIndex1, startPntIndex2)
-            print(lineCoordList)
+            # print(nearCoord)
+            # print(startPntIndex1, startPntIndex2)
+            # print(lineCoordList)
+            sr = s - nearDis
+            pntsFromSch, pntsToSch = generateServiceArea(sr, nearCoord, lineCorLst, startPntIndex1, startPntIndex2,
+                                                         schoolCoord)
+
+            res_fs = createFeature(os.path.join(outputPath, outputName + "_fs_{}_{}".format(i, j)), pntsFromSch,
+                                   spatialReference)
+            res_ts = createFeature(os.path.join(outputPath, outputName + "_ts_{}_{}".format(i, j)), pntsToSch,
+                                   spatialReference)
+
+            res_fs_ply = pointsToPlg(res_fs, os.path.join(outputPath, outputName + "_fs_{}_{}_ply".format(i, j)))
+            res_ts_ply = pointsToPlg(res_ts, os.path.join(outputPath, outputName + "_ts_{}_{}_ply".format(i, j)))
+
+            arcpy.FeatureToPolygon_management(res_fs_ply,
+                                              os.path.join(outputPath, outputName + "_fs_{}_{}_plg".format(i, j)))
+            arcpy.FeatureToPolygon_management(res_ts_ply,
+                                              os.path.join(outputPath, outputName + "_ts_{}_{}_plg".format(i, j)))
 
 
-
-dataSchool = r"..\demo\school.shp"
-dataRoads = r"..\demo\roads.shp"
-outputPath = r"..\demo\res"
-s = 100
+dataSchool = r"..\demo\school_pcs.shp"
+dataRoads = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\老师\pythonProject\demo\road_pcs_bak.shp"
+# outputPath = r"..\demo\res"
+s = 15
+# resData = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\老师\pythonProject\demo\res\talPnts_.shp"
+outputPath = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\老师\pythonProject\demo\res"
+outputName = "py_test"
+spatialReference = arcpy.SpatialReference(32648)
 
 if __name__ == "__main__":
-    main(dataSchool, dataRoads, outputPath)
+    main(dataSchool, dataRoads, outputPath, outputName, s)
