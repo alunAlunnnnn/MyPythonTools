@@ -1,0 +1,38 @@
+
+
+ *** 
+ 2020-09-27 10:22:46,091    DEBUG ==== Module import success 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-27 10:22:46,092    INFO ====  ========== Progress Initing ==========  
+ *** 
+
+
+
+
+ *** 
+ 2020-09-27 10:22:46,092    DEBUG ====  Params: 
+ * Common params: 
+ ** spatialIndex --- (1, 1) 
+ ** plyTotalExtent --- None 
+
+ 
+ *** 
+
+
+
+
+ *** 
+ 2020-09-27 10:22:46,092    DEBUG ====  * Input params: 
+ ** inGDB --- E:\南京管线\代码_三通四通\代码测试数据\data\管线数据最终二维数据.gdb 
+ ** outputGDB --- E:\南京管线\代码_三通四通\代码测试数据\data\res.gdb 
+ ** outputPath --- E:\南京工具\工具交活整理_0916\测试数据\工具3_三通四通 
+ ** tolerance --- 0.1 
+ 
+ *** 
+
+
