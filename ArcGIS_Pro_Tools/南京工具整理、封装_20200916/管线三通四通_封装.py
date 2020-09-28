@@ -518,7 +518,7 @@ class lineEquation:
 def _convertToXlsx(FC, outputPath, feaType, convertAll=True):
     """
     usage: used to convert feature class's attributes to xlsx with the same name
-           based on module --- arcpyï¼Œ openpyxl
+           based on module --- arcpy£¬ openpyxl
     :param FC: type --- String.  input the feature class in esri data type
     :param outputPath: type --- String.  define where the xlsx data will be saved
     :param convertAll: type --- Boolean.  True --> convert all attribute,
@@ -915,7 +915,7 @@ def copyPointsInXlsx(pntxlsx):
         pointStyle = sht.cell(i, styleFiledIndex).value.strip()
 
         # copy two new rows, total 3 rows
-        if pointStyle == "å¼¯å¤´" or pointStyle == "æ‹ç‚¹":
+        if pointStyle == "ÍäÍ·" or pointStyle == "¹Õµã":
             dir_1_data = sht.cell(i, dir_1_index).value
             dir_2_data = sht.cell(i, dir_2_index).value
             z_1_data = sht.cell(i, z_1_index).value
@@ -1003,7 +1003,7 @@ def copyPointsInXlsx(pntxlsx):
 
 
         # copy three new rows, total 4 rows
-        elif pointStyle == "ä¸‰é€š":
+        elif pointStyle == "ÈıÍ¨":
             dir_1_data = sht.cell(i, dir_1_index).value
             dir_2_data = sht.cell(i, dir_2_index).value
             dir_3_data = sht.cell(i, dir_3_index).value
@@ -1130,7 +1130,7 @@ def copyPointsInXlsx(pntxlsx):
                         sht.cell(new_row1, eachCol).value = data
 
         # copy four new rows, total 5 rows
-        elif pointStyle == "å››é€š":
+        elif pointStyle == "ËÄÍ¨":
             dir_1_data = sht.cell(i, dir_1_index).value
             dir_2_data = sht.cell(i, dir_2_index).value
             dir_3_data = sht.cell(i, dir_3_index).value
@@ -1383,7 +1383,7 @@ def selectTargetData(inGDB, outputGDB):
         # select data
         if each.split("_")[-1] == "POINT":
             outFC = arcpy.Select_analysis(each, os.path.join(outputGDB, each),
-                                          "TZD LIKE '%ä¸‰é€š%' Or TZD LIKE '%å››é€š%' Or TZD LIKE '%å¼¯å¤´%' Or TZD LIKE '%æ‹ç‚¹%'")
+                                          "TZD LIKE '%ÈıÍ¨%' Or TZD LIKE '%ËÄÍ¨%' Or TZD LIKE '%ÍäÍ·%' Or TZD LIKE '%¹Õµã%'")
         elif each.split("_")[-1] == "LINE":
             arcpy.CopyFeatures_management(each, os.path.join(outputGDB, each))
 
@@ -2454,7 +2454,7 @@ def createSymbolFile():
         ],
         "dataConnection" : {
           "type" : "CIMStandardDataConnection",
-          "workspaceConnectionString" : "DATABASE=.\\\\æ–°æµ‹è¯•æ•°æ®.gdb",
+          "workspaceConnectionString" : "DATABASE=.\\\\ĞÂ²âÊÔÊı¾İ.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "XX_YXX_POINT_new",
           "datasetType" : "esriDTFeatureClass"
@@ -2973,7 +2973,7 @@ def createSymbolFile():
   "cMYKColorProfile" : "U.S. Web Coated (SWOP) v2"
 }"""
     tbxDir = os.path.dirname(sys.argv[0])
-    # tbxDir = r"E:\å—äº¬å·¥å…·\å·¥å…·äº¤æ´»æ•´ç†_0916\æµ‹è¯•æ•°æ®\å·¥å…·3_ä¸‰é€šå››é€š\res2"
+    # tbxDir = r"E:\ÄÏ¾©¹¤¾ß\¹¤¾ß½»»îÕûÀí_0916\²âÊÔÊı¾İ\¹¤¾ß3_ÈıÍ¨ËÄÍ¨\res2"
     lyrDir = os.path.join(tbxDir, "lyrxDir")
     lyrTxtFile = os.path.join(lyrDir, "myLyr.txt")
     lyrLyrFile = os.path.join(lyrDir, "myLyr.lyrx")
@@ -3156,9 +3156,9 @@ tolerance = 0.1
 logging.info(f" === Common Para: \n == spatialIndex: {spatialIndex} \n"
              f" == tolerance: {tolerance} \n")
 
-# inGDB = r"E:\å—äº¬å·¥å…·\å·¥å…·äº¤æ´»æ•´ç†_0916\æµ‹è¯•æ•°æ®\å·¥å…·3_ä¸‰é€šå››é€š\äºŒç»´æµ‹è¯•æ•°æ®.gdb"
-# outputGDB = r"E:\å—äº¬å·¥å…·\å·¥å…·äº¤æ´»æ•´ç†_0916\æµ‹è¯•æ•°æ®\å·¥å…·3_ä¸‰é€šå››é€š\res2\ç®¡ç‚¹æ•°æ®.gdb"
-# outputPath = r"E:\å—äº¬å·¥å…·\å·¥å…·äº¤æ´»æ•´ç†_0916\æµ‹è¯•æ•°æ®\å·¥å…·3_ä¸‰é€šå››é€š\res2"
+# inGDB = r"E:\ÄÏ¾©¹¤¾ß\¹¤¾ß½»»îÕûÀí_0916\²âÊÔÊı¾İ\¹¤¾ß3_ÈıÍ¨ËÄÍ¨\¶şÎ¬²âÊÔÊı¾İ.gdb"
+# outputGDB = r"E:\ÄÏ¾©¹¤¾ß\¹¤¾ß½»»îÕûÀí_0916\²âÊÔÊı¾İ\¹¤¾ß3_ÈıÍ¨ËÄÍ¨\res2\¹ÜµãÊı¾İ.gdb"
+# outputPath = r"E:\ÄÏ¾©¹¤¾ß\¹¤¾ß½»»îÕûÀí_0916\²âÊÔÊı¾İ\¹¤¾ß3_ÈıÍ¨ËÄÍ¨\res2"
 # sr = arcpy.SpatialReference(4549)
 # tolerance = 0.1
 
