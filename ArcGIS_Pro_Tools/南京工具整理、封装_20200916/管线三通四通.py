@@ -1319,43 +1319,41 @@ def copyPointsInXlsx(pntxlsx):
                     elif copyControl == 1:
                         sht.cell(new_row1, eachCol).value = data
 
-    # delZCen, delZ1Line, delPntType, delRollZ, delRollZ1 = None, None, None, None, None
-    # # delete temp fields
-    # maxCol = sht.max_column
-    # for i in range(1, maxCol + 1):
-    #     value = sht.cell(1, i).value
-    #     if value == "z1_line_":
-    #         delZ1Line = i
-    #     elif value == "PNT_TYPE_":
-    #         delPntType = i
-    #
-    # if delZ1Line and delPntType:
-    #     sht.delete_cols(delZ1Line, (delPntType - delZ1Line))
-    #
-    # maxCol = sht.max_column
-    # for i in range(1, maxCol + 1):
-    #     value = sht.cell(1, i).value
-    #     if value == "z_cen_":
-    #         delZCen = i
-    #
-    # if delZCen:
-    #     sht.delete_cols(delZCen, 1)
-    #
-    # maxCol = sht.max_column
-    # for i in range(1, maxCol + 1):
-    #     value = sht.cell(1, i).value
-    #     if value == "ROLL_Z_":
-    #         delRollZ = i
-    #     elif value == "roll_z_adjust_":
-    #         delRollZ1 = i
-    #
-    # if delRollZ:
-    #     sht.delete_cols(delRollZ, 1)
-    #
+    delZCen, delZ1Line, delPntType, delRollZ, delRollZ1 = None, None, None, None, None
+    # delete temp fields
+    maxCol = sht.max_column
+    for i in range(1, maxCol + 1):
+        value = sht.cell(1, i).value
+        if value == "z1_line_":
+            delZ1Line = i
+        elif value == "PNT_TYPE_":
+            delPntType = i
+
+    if delZ1Line and delPntType:
+        sht.delete_cols(delZ1Line, (delPntType - delZ1Line))
+
+    maxCol = sht.max_column
+    for i in range(1, maxCol + 1):
+        value = sht.cell(1, i).value
+        if value == "z_cen_":
+            delZCen = i
+
+    if delZCen:
+        sht.delete_cols(delZCen, 1)
+
     # maxCol = sht.max_column
     # for i in range(1, maxCol + 1):
     #     value = sht.cell(1, i).value
     #     if value == "roll_z_adjust_":
+    #         delRollZ1 = i
+    #
+    # if delRollZ1:
+    #     sht.delete_cols(delRollZ1, 1)
+    #
+    # maxCol = sht.max_column
+    # for i in range(1, maxCol + 1):
+    #     value = sht.cell(1, i).value
+    #     if value == "roll_z_adjust_2":
     #         delRollZ1 = i
     #
     # if delRollZ1:
@@ -1469,17 +1467,51 @@ def generateNewRoll_X(pntxlsx):
         #     sht.cell(i, maxCol + 1).value = "None"
 
     wb.save(os.path.join(os.path.dirname(pntxlsx),
-                         os.path.basename(pntxlsx).split(".xlsx")[0] + "_res.xlsx"))
+                         os.path.basename(pntxlsx).strip(".xlsx") + "_res.xlsx"))
+
+    return os.path.join(os.path.dirname(pntxlsx),
+                        os.path.basename(pntxlsx).strip(".xlsx") + "_res.xlsx")
 
 
 @logIt
 def xlsxToPointFC(xlsx, sr, outputPath):
+    resData = os.path.join(outputPath, os.path.basename(xlsx).strip(".xlsx"))
     tv = arcpy.MakeTableView_management(xlsx + "\Sheet$", "tv_tmp")
     xyLyr = arcpy.MakeXYEventLayer_management(tv, "x_cen_", "y_cen_",
                                               os.path.basename(xlsx).strip(".xlsx") + "_temp",
                                               sr, "new_z_fin_")
-    arcpy.CopyFeatures_management(xyLyr, os.path.join(outputPath, os.path.basename(xlsx).strip(".xlsx")))
-    return os.path.join(outputPath, os.path.basename(xlsx).strip(".xlsx"))
+    arcpy.CopyFeatures_management(xyLyr, resData)
+    addNewRollXField(resData)
+    return resData
+
+
+@logIt
+def addNewRollXField(pntFC):
+    _addField(pntFC, "ROLL_X_N_", "DOUBLE")
+    codes = """def f(rollz, rollx, zx, zy):
+    # dir - x
+    if -45 <= rollz <= 45 or 135 <= rollz <= 180 or -180 <= rollz <= -135:
+        if 0 <= zx <= 90:
+            res = rollx + zx
+        elif 90 < zx <= 180:
+            res = 180 - zx + rollx
+        elif 0 > zx >= -90:
+            res = rollx + zx
+        elif -180 <= zx < -90:
+            res = rollx - (180 + zx)
+    else:
+        if 0 <= zy <= 90:
+            res = rollx + zy
+        elif 90 < zy <= 180:
+            res = 180 - zy + rollx
+        elif 0 > zy >= -90:
+            res = rollx + zy
+        elif -180 <= zy < -90:
+            res = rollx - (180 + zy)
+    return res"""
+    arcpy.CalculateField_management(pntFC, "ROLL_X_N_", "f(!ROLL_Z_!, !ROLL_X_!, !roll_z_adjust_!, !roll_z_adjust_y!)",
+                                    "PYTHON3", codes)
+
 
 
 @getRunTime
@@ -1513,15 +1545,25 @@ def main(pnt, ply, outputPath, outputGDB, sr):
     # copy all datas to make feature class
     pnt_res_xlsx = copyPointsInXlsx(pntxlsx)
 
+    # # calculate new roll_x as the field of roll_z_adjust_y
+    # # give up this way
+    # final_pnt = generateNewRoll_X(pnt_res_xlsx)
+
     logging.info(f" === Progress Step8 Generate Point Feature Class === ")
     # generate point feature class from xlsx
-    xlsxToPointFC(pnt_res_xlsx, sr, outputGDB)
+    resPnt = xlsxToPointFC(pnt_res_xlsx, sr, outputGDB)
+
+    # add data to aprx
+    
+
+    # todo add to arcgis pro and auto apply the symbol of .dae
 
     logging.info(f" === Progress Step9 Clear Temp Xlsx")
     try:
         os.remove(pntXls)
         os.remove(plyXls)
         os.remove(pntxlsx)
+        # os.remove(pnt_res_xlsx)
     except:
         logging.info(f" +++ Delete Temp Xlsx Faild +++ ")
 
@@ -1561,3 +1603,4 @@ for eachtup in resdataTupleList:
     pntData, plyData = eachtup
     main(pntData, plyData, outputPath, outputGDB, sr)
     arcpy.SetProgressorPosition()
+
