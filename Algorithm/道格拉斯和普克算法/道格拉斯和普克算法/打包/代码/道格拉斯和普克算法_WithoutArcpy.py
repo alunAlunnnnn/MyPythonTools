@@ -1,6 +1,6 @@
 import logging
 
-logs = r"E:\GIS算法\道格拉斯和普克算法\测试数据\log\log.txt"
+logs = r"./DPlog.txt"
 logging.basicConfig(filename=logs, filemode="w",
                     format="%(levelname)s --- %(asctime)s --- %(message)s",
                     level=logging.DEBUG)
@@ -12,11 +12,11 @@ try:
     import datetime
     import sys
     import sqlite3
+
     logging.info("All module needed have imported successfully")
 
 except BaseException as e:
     logging.error(f"Lack of module. Error Message --- {e}")
-
 
 sys.setrecursionlimit(1000000000)
 
@@ -93,7 +93,6 @@ class lineEquation:
 
         self.generateEquation()
 
-
     # calculate k --- ( y2 - y1 ) / ( x2 - x1 )
     def calculateK_xy(self):
         if self.x1 == self.x2:
@@ -102,7 +101,6 @@ class lineEquation:
         k = (self.y2 - self.y1) / (self.x2 - self.x1)
         self.k_xy = k
         return self
-
 
     # calculate b --- y1 - k * x1
     def calculateB_xy(self):
@@ -113,7 +111,6 @@ class lineEquation:
             self.b_xy = b
         return self
 
-
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_yz(self):
         if self.y1 == self.y2:
@@ -122,7 +119,6 @@ class lineEquation:
         k = (self.z2 - self.z1) / (self.y2 - self.y1)
         self.k_yz = k
         return self
-
 
     # calculate b --- z1 - k * y1
     def calculateB_yz(self):
@@ -133,7 +129,6 @@ class lineEquation:
             self.b_yz = b
         return self
 
-
     # calculate k --- ( z2 - z1 ) / ( y2 - y1 )
     def calculateK_xz(self):
         if self.x1 == self.x2:
@@ -142,7 +137,6 @@ class lineEquation:
         k = (self.z2 - self.z1) / (self.x2 - self.x1)
         self.k_xz = k
         return self
-
 
     # calculate b --- z1 - k * y1
     def calculateB_xz(self):
@@ -153,14 +147,12 @@ class lineEquation:
             self.b_xz = b
         return self
 
-
     # generate function equation
     def generateEquation(self):
         self.euqation_xy = '%s * x + %s' % (self.k_xy, self.b_xy)
         self.euqation_yz = '%s * x + %s' % (self.k_yz, self.b_yz)
         self.euqation_xz = '%s * x + %s' % (self.k_xz, self.b_xz)
         return self
-
 
     # calculate the intersect point
     def calculateIntersect(self, otherLineObj):
@@ -196,7 +188,6 @@ class lineEquation:
 
         return x, y
 
-
     # calculate z value in intersect x,y
     def calculateZCoord_yz(self, x, y):
         if self.k_yz != -999:
@@ -226,7 +217,6 @@ class lineEquation:
             self.extent_xmax * 10 ** 8), "Error --- Extent of line object is not available"
         assert int(self.extent_ymin * 10 ** 8) <= int(
             self.extent_ymax * 10 ** 8), "Error --- Extent of line object is not available"
-
 
     def calDisFromPnt(self, firstPoint):
         """
@@ -301,13 +291,37 @@ def getRunTime(func):
 
 
 def writeDataToDB(pntList, db, table):
+    oriTable = table
     table += "_res"
     print("input", pntList)
     conn = sqlite3.connect(db)
     c = conn.cursor()
+
+    # 获取表结构
+    tbStructure = c.execute(f"pragma table_info({oriTable})").fetchall()
+    print(tbStructure)
+    sqlExp = ""
+    insertExp = ("?," * len(tbStructure))[:-1]
+    for eachField in tbStructure:
+        cid, fieldName, fieldType, null, default, pk = eachField
+        sqlExp += fieldName + " " + fieldType
+
+        if pk == 1:
+            sqlExp += sqlExp + " primary key"
+
+        if null == 1:
+            sqlExp += sqlExp + " not null"
+
+        if default is not None:
+            sqlExp += sqlExp + f" default {default}"
+        sqlExp += ", "
+    print(sqlExp)
+    print(sqlExp[:-2])
+    print(insertExp)
+    print(type(insertExp))
     c.execute(f"DROP TABLE IF EXISTS {table};")
-    c.execute(f"CREATE TABLE IF NOT EXISTS {table}(X real, Y real, Z real); ")
-    c.executemany(f"INSERT INTO {table} VALUES(?, ?, ?);", pntList)
+    c.execute(f"CREATE TABLE IF NOT EXISTS {table}({sqlExp[:-2]});")
+    c.executemany(f"INSERT INTO {table} VALUES({insertExp});", pntList)
     conn.commit()
     conn.close()
     return db
@@ -329,30 +343,39 @@ def coordVarify(pntList):
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....] or [(x1, y1), (x2, y2), (x3, y3), ....]
     :return:
     """
+    global zIndex
     resPntList = []
 
-    for eachPnt in pntList:
-        #  确保数据至少有x, y坐标
-        assert len(eachPnt) >= 2, "Coord is not available, the coord's number of point is less than 2"
-        newEachPnt = list(eachPnt)
-        if len(eachPnt) == 2:
-            newEachPnt.insert(2, 0)
-        newEachPnt = tuple(newEachPnt)
-        resPntList.append(newEachPnt)
+    if zIndex == 'None':
+        for eachPnt in pntList:
+            #  确保数据至少有x, y坐标
+            assert len(eachPnt) >= 2, "Coord is not available, the coord's number of point is less than 2"
+            temp = list(eachPnt)
+            temp.append(0)
+            newEachPnt = tuple(temp)
+            resPntList.append(newEachPnt)
+        zIndex = -1
+    else:
+        resPntList = pntList
     return resPntList
 
 
 def singpntVarify(pntCoord):
+    global zIndex_bak
     assert len(pntCoord) >= 2, "Coord is not available, the coord's number of point is less than 2"
-    newEachPnt = list(pntCoord)
-    if len(pntCoord) == 2:
-        newEachPnt.insert(2, 0)
-    newEachPnt = tuple(newEachPnt)
+    if zIndex_bak == 'None':
+        temp = list(pntCoord)
+        temp.append(0)
+        newEachPnt = tuple(temp)
+        zIndex = -1
+    else:
+        newEachPnt = pntCoord
 
     return newEachPnt
 
 
 def DP(pntList, tolerance):
+    global xIndex, yIndex, zIndex
     """
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
@@ -363,15 +386,15 @@ def DP(pntList, tolerance):
     pntList = coordVarify(pntList)
 
     if len(pntList) > 2:
-        x_f, y_f, z_f = (pntList[0])
-        x_l, y_l, z_l = (pntList[-1])
+        x_f, y_f, z_f = (pntList[0][xIndex], pntList[0][yIndex], pntList[0][zIndex])
+        x_l, y_l, z_l = (pntList[-1][xIndex], pntList[-1][yIndex], pntList[-1][zIndex])
         ext = (min(x_f, x_l), min(y_f, y_l), max(x_f, x_l), max(y_f, y_l))
 
         # 实例化起点到终点的线
         line = lineEquation((x_f, y_f, z_f), (x_l, y_l, z_l), ext)
 
         for eachPnt in pntList[1:-1]:
-            x, y, z = eachPnt
+            x, y, z = eachPnt[xIndex], eachPnt[yIndex], eachPnt[zIndex]
             dis = line.calDisFromPnt((x, y, z))
             # 筛出点到线距离小于容差的点集
             if dis < tolerance:
@@ -381,7 +404,7 @@ def DP(pntList, tolerance):
         maxDis = 0
         maxDisPntIndex = 0
         for i, eachPnt in enumerate(pntList[1:-1]):
-            x, y, z = eachPnt
+            x, y, z = eachPnt[xIndex], eachPnt[yIndex], eachPnt[zIndex]
             dis = line.calDisFromPnt((x, y, z))
             if dis > maxDis:
                 maxDis = dis
@@ -431,12 +454,19 @@ def main(tolerance, outdb, table):
         endPoint = singpntVarify(pnts[1])
         resList.append(endPoint)
 
-    writeDataToDB(resList, outdb, table)
+    # 去掉新补的z值
+    if zIndex_bak == "None":
+        newResList = []
+        for eachPnt in resList:
+            newResList.append(eachPnt[:-1])
+    else:
+        newResList = resList
+
+    writeDataToDB(newResList, outdb, table)
 
 
 # 内置参数
 resList = []
-
 
 for i in range(1, 8):
     print("=" * 30)
@@ -445,9 +475,23 @@ for i in range(1, 8):
     # 内置参数
     resList = []
 
-    outdb = r"E:\GIS算法\道格拉斯和普克算法\测试数据\DPTest.db"
-    table = fr"new_shp_{i}"
+    # 传参
+    # 原始数据读取和结果数据输出的sqlite3数据库
+    outdb = r"./DPTest.db"
+    # 原始数据表
+    table = f"new_withattr_shp_{i}"
+    # 筛选容差
     tolerance = 0.001
+    # x字段所在的列索引，从0开始
+    xIndex = 0
+    # y字段所在的列索引，从0开始
+    yIndex = 1
+    # z字段所在的列索引，从0开始
+    zIndex = "None"
+
+
+    # 内部使用
+    zIndex_bak = zIndex
 
     if __name__ == "__main__":
         main(tolerance, outdb, table)
