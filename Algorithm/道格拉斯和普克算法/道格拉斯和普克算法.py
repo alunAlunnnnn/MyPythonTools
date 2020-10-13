@@ -737,7 +737,7 @@ def main(inFC, outxlsx, tolerance, outdb, table, outputFC):
         print(2)
         resList.append(pnts[1])
 
-    createLineFC(resList, outputFC)
+    # createLineFC(resList, outputFC)
 
     table += "_res"
     writeDataToDB(resList, outdb, table)
@@ -771,25 +771,3 @@ for i in range(1, 8):
     if __name__ == "__main__":
         main(data, outxlsx, tolerance, outdb, table, outputFC)
         print(resList)
-
-
-# startz = 0
-# def f(a):
-#     global startz
-#     if a <= 800:
-#         startz += 1
-#         return startz
-#     else:
-#         startz -= 1
-#         return startz
-#
-# startz = 0
-# def f(a, count):
-#     global startz
-#     a, count = float(a), float(count)
-#     if a <= count/2:
-#         startz += 1
-#         return startz
-#     else:
-#         startz -= 1
-#         return startz

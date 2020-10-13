@@ -375,13 +375,13 @@ def singpntVarify(pntCoord):
 
 
 def DP(pntList, tolerance):
-    global xIndex, yIndex, zIndex
     """
     :param pntList: [(x1, y1, z1), (x2, y2, z2), (x3, y3, z3), ....]
     :return:
     """
     global resList
-    global line, pntList1, pntList2
+    global xIndex, yIndex, zIndex
+    # global line, pntList1, pntList2
 
     pntList = coordVarify(pntList)
 
@@ -444,15 +444,15 @@ def main(tolerance, outdb, table):
     logging.debug(f"The result of points with DP algorithm are {resList}\n")
     logging.info("Step6 --- Create line feature class")
 
-    # 去重
-    resList = list(set(resList))
-
     if pnts[0] not in resList:
         startPnt = singpntVarify(pnts[0])
         resList.insert(0, startPnt)
     if pnts[1] not in resList:
         endPoint = singpntVarify(pnts[1])
         resList.append(endPoint)
+
+    # 去重
+    resList = list(set(resList))
 
     # 去掉新补的z值
     if zIndex_bak == "None":
