@@ -87,7 +87,6 @@ def appendBIMData(gdb, name, dSets):
             pass
 
 
-
 def main(gdb, name, outputName):
     dSets = getAllDataSets(gdb, name)
 
