@@ -1,0 +1,11 @@
+{
+    "ARRIVAL_DEPARTURE_WAY": "进出港航道",
+    "BOUNDARY": "省界",
+    "DOMESTIC_AIRWAY": "国内航路",
+    "EAST_REGION_LABLE": "华东情报区标注",
+    "EAST_REGION": "华东情报区",
+    "INTERNER_AIRWAY": "国际航路",
+    "INTERNET_REGION_LABLE": "国际情报区标注",
+    "INTERNET_REGION": "国际情报区",
+    "TEMPORARY_WAY": "临时航路"
+}

@@ -2,11 +2,9 @@ import os
 
 
 path=r'E:\cesium\cesium测试_0824\东方有线max\newobj'
-# xoff=330000.0190
-# yoff=347000.0875
 xoff=13520542.39
 yoff=3696391.63
-# zoff=-1.924
+zoff=-1.924
 for root,dirs,files in os.walk(path):
     for f in files:
         if f[-3:]=="mtl":
