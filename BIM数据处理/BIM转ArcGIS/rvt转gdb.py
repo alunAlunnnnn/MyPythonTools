@@ -1,6 +1,6 @@
 import arcpy
 import os
-fileDir = r"E:\松江管廊\新数据0805\新BIM_1009\松江管廊模型数据\unpack\001模型文件夹\模型文件夹\003玉阳大道文件夹_68个\玉阳大道_机电"
+fileDir = r"E:\松江管廊\新数据0805\新BIM_1009\数据筛选后\白粮路"
 dataList = []
 for eachRoot, eachDir, eachFile in os.walk(fileDir):
     # print(eachFile)
@@ -9,4 +9,4 @@ for eachRoot, eachDir, eachFile in os.walk(fileDir):
             dataList.append(os.path.join(eachRoot, each))
 print(dataList)
 print(len(dataList))
-arcpy.conversion.BIMFileToGeodatabase(dataList, "E:\松江管廊\新数据0805\新BIM_1009\数据处理\BIM转GIS\BIM入GIS.gdb", "玉阳大道_part3")
+arcpy.conversion.BIMFileToGeodatabase(dataList, r"D:\Users\lyce\Documents\ArcGIS\Projects\管廊BIM\白粮路_BIM2GIS.gdb", "白粮路")
