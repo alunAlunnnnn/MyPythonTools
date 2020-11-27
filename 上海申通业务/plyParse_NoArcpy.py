@@ -1,14 +1,16 @@
 import functools
 import math
-import arcpy
+# import arcpy
 import re
 import sys
 import pandas as pd
 import os
 import openpyxl
 import sqlite3
+import shapefile
 
-arcpy.env.overwriteOutput = True
+
+# arcpy.env.overwriteOutput = True
 
 
 class dataTypeNotAvailable(Exception):
@@ -228,50 +230,50 @@ class myXYPolyline:
             raise notEnoughPntInputed
 
 
-def getLineWKT(inFC, upOrDownFieldName):
-    """
-    usage: 获取输入的线要素类中每条线要素的坐标点集
-    :param inFC: str, 输入不带z值的线要素类
-    :param upOrDownFieldName: str, 字段名，用以标识哪个字段区分上下行
-    :return: list, [[”线1上行或下行“, [x1, y1], [x2, y2], .... ], [”线2上行或下行“, [x1, y1], [x2, y2], .... ], ....]
-    """
-    plyCoordList = []
-    # 获取除了上下行字段、shape_area、shape_length、SHAPE字段外的其他字段
-    fieldNames = [each.name for each in arcpy.ListFields(inFC) if each.name.lower() != "shape_length" and
-                  each.name.lower() != "shape_area" and each.name.lower() != "shape" and each.name != upOrDownFieldName]
-    if len(fieldNames) == 0:
-        attrList = ["SHAPE@WKT", upOrDownFieldName]
-    else:
-        attrList = ["SHAPE@WKT", upOrDownFieldName, *fieldNames]
-    # print(attrList)
-    with arcpy.da.SearchCursor(inFC, attrList) as cur:
-        for row in cur:
-            data = {}
-            attr = {}
-            # 获取wkt
-            wkt = row[0]
-            print("wkt", wkt)
-            wkt = re.findall(r"-?\d+\.?\d+\s?-?\d+\.?\d+", wkt)
-
-            # 清除wkt中的非数值型字符，并且如果数据有z值，则z值会被过滤掉
-            coord = [list(map(float, eachPnt.split(" ")[:2])) for eachPnt in wkt]
-
-            # 获取线路的上下行
-            direction = row[1]
-            data["GEOMETRY"] = coord
-            data["DIRECTION"] = direction
-
-            # 获取线路的其他属性
-            if len(fieldNames) > 0:
-                for j, eachAttr in enumerate(fieldNames):
-                    attr[eachAttr] = row[j + 2]
-                data["ATTRIBUTES"] = attr
-            else:
-                data["ATTRIBUTES"] = {}
-            plyCoordList.append(data)
-            # print("coord", coord)
-    # print("plyCoordList", plyCoordList)
-    return plyCoordList
+# def getLineWKT(inFC, upOrDownFieldName):
+#     """
+#     usage: 获取输入的线要素类中每条线要素的坐标点集
+#     :param inFC: str, 输入不带z值的线要素类
+#     :param upOrDownFieldName: str, 字段名，用以标识哪个字段区分上下行
+#     :return: list, [[”线1上行或下行“, [x1, y1], [x2, y2], .... ], [”线2上行或下行“, [x1, y1], [x2, y2], .... ], ....]
+#     """
+#     plyCoordList = []
+#     # 获取除了上下行字段、shape_area、shape_length、SHAPE字段外的其他字段
+#     fieldNames = [each.name for each in arcpy.ListFields(inFC) if each.name.lower() != "shape_length" and
+#                   each.name.lower() != "shape_area" and each.name.lower() != "shape" and each.name != upOrDownFieldName]
+#     if len(fieldNames) == 0:
+#         attrList = ["SHAPE@WKT", upOrDownFieldName]
+#     else:
+#         attrList = ["SHAPE@WKT", upOrDownFieldName, *fieldNames]
+#     # print(attrList)
+#     with arcpy.da.SearchCursor(inFC, attrList) as cur:
+#         for row in cur:
+#             data = {}
+#             attr = {}
+#             # 获取wkt
+#             wkt = row[0]
+#             print("wkt", wkt)
+#             wkt = re.findall(r"-?\d+\.?\d+\s?-?\d+\.?\d+", wkt)
+#
+#             # 清除wkt中的非数值型字符，并且如果数据有z值，则z值会被过滤掉
+#             coord = [list(map(float, eachPnt.split(" ")[:2])) for eachPnt in wkt]
+#
+#             # 获取线路的上下行
+#             direction = row[1]
+#             data["GEOMETRY"] = coord
+#             data["DIRECTION"] = direction
+#
+#             # 获取线路的其他属性
+#             if len(fieldNames) > 0:
+#                 for j, eachAttr in enumerate(fieldNames):
+#                     attr[eachAttr] = row[j + 2]
+#                 data["ATTRIBUTES"] = attr
+#             else:
+#                 data["ATTRIBUTES"] = {}
+#             plyCoordList.append(data)
+#             # print("coord", coord)
+#     # print("plyCoordList", plyCoordList)
+#     return plyCoordList
 
 
 def readSplitPntFromXLSX(xls):
@@ -467,49 +469,49 @@ def _splitLine(singleLineDict, singleXlsxDict):
     return plyFC
 
 
-def createFeatureClass(plyList, outputPath, outputName, wkid=None, wkt=None):
-    if wkid:
-        sr = arcpy.SpatialReference(wkid)
-    elif wkt:
-        sr = arcpy.SpatialReference()
-        sr.loadFromString(wkt)
-    else:
-        sr = None
+# def createFeatureClass(plyList, outputPath, outputName, wkid=None, wkt=None):
+#     if wkid:
+#         sr = arcpy.SpatialReference(wkid)
+#     elif wkt:
+#         sr = arcpy.SpatialReference()
+#         sr.loadFromString(wkt)
+#     else:
+#         sr = None
+#
+#     # plyfc = []
+#     # for eachPly in plyList:
+#     #     plyfc.append(arcpy.Polyline(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPly])))
+#     # print(plyfc)
+#     # outputData = os.path.join(outputPath, outputName)
+#     # arcpy.CopyFeatures_management(plyfc, outputData)
+#
+#     data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POLYLINE", spatial_reference=sr)
+#     arcpy.AddField_management(data, "startMile", "DOUBLE")
+#     arcpy.AddField_management(data, "endMile", "DOUBLE")
+#
+#     with arcpy.da.InsertCursor(data, ["SHAPE@", "startMile", "endMile"]) as cur:
+#         for eachPly in plyList:
+#             # print(eachPly)
+#             ply = arcpy.Polyline(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPly[0]]))
+#             cur.insertRow([ply, eachPly[1], eachPly[2]])
 
-    # plyfc = []
-    # for eachPly in plyList:
-    #     plyfc.append(arcpy.Polyline(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPly])))
-    # print(plyfc)
-    # outputData = os.path.join(outputPath, outputName)
-    # arcpy.CopyFeatures_management(plyfc, outputData)
 
-    data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POLYLINE", spatial_reference=sr)
-    arcpy.AddField_management(data, "startMile", "DOUBLE")
-    arcpy.AddField_management(data, "endMile", "DOUBLE")
-
-    with arcpy.da.InsertCursor(data, ["SHAPE@", "startMile", "endMile"]) as cur:
-        for eachPly in plyList:
-            # print(eachPly)
-            ply = arcpy.Polyline(arcpy.Array([arcpy.Point(*eachPnt) for eachPnt in eachPly[0]]))
-            cur.insertRow([ply, eachPly[1], eachPly[2]])
-
-
-def spilitLineWithXlsxData(xlsxData, plyCoord, wkt):
-    for i, eachPly in enumerate(plyCoord):
-        for j, eachData in enumerate(xlsxData):
-            shtName = eachData["NAME"]
-            plyFC = _splitLine(eachPly, eachData)
-            name = f"ply_{shtName}_{i}_{j}"
-            print(plyFC)
-            createFeatureClass(plyFC, r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\res.gdb", name,
-                               wkt=wkt)
-            with open(rf"./data/{name}.txt", "w", encoding="utf-8") as f:
-                for each in plyFC:
-                    f.write(str(each))
-                    f.write("\n")
-                    f.write("\n")
-                    f.write("\n")
-                    f.write("\n")
+# def spilitLineWithXlsxData(xlsxData, plyCoord, wkt):
+#     for i, eachPly in enumerate(plyCoord):
+#         for j, eachData in enumerate(xlsxData):
+#             shtName = eachData["NAME"]
+#             plyFC = _splitLine(eachPly, eachData)
+#             name = f"ply_{shtName}_{i}_{j}"
+#             print(plyFC)
+#             createFeatureClass(plyFC, r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\res.gdb", name,
+#                                wkt=wkt)
+#             with open(rf"./data/{name}.txt", "w", encoding="utf-8") as f:
+#                 for each in plyFC:
+#                     f.write(str(each))
+#                     f.write("\n")
+#                     f.write("\n")
+#                     f.write("\n")
+#                     f.write("\n")
 
 
 def createTable(dbFile, tableName):
@@ -923,6 +925,8 @@ def createPntFCWithDB(dbFile, tableName):
     resData = pd.read_sql(querySql, db)
     print(resData)
 
+    resData.to_csv("D:/sttest/test_down.txt", index=False)
+
 
 
 # ***********************************************************
@@ -1033,6 +1037,7 @@ dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海�
 #
 # calXYInPntDB(dbFile, newTableNameList)
 
-tableName = "PNT_上行_ORDERD"
+# tableName = "PNT_上行_ORDERD"
+tableName = "PNT_下行_ORDERD"
 createPntFCWithDB(dbFile, tableName)
 # ===============================================
