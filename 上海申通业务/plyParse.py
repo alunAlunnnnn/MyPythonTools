@@ -250,7 +250,7 @@ def getLineWKT(inFC, upOrDownFieldName):
             attr = {}
             # 获取wkt
             wkt = row[0]
-            print("wkt", wkt)
+            # print("wkt", wkt)
             wkt = re.findall(r"-?\d+\.?\d+\s?-?\d+\.?\d+", wkt)
 
             # 清除wkt中的非数值型字符，并且如果数据有z值，则z值会被过滤掉
@@ -274,7 +274,8 @@ def getLineWKT(inFC, upOrDownFieldName):
     return plyCoordList
 
 
-def readSplitPntFromXLSX(xls):
+def readSplitPntFromXLSX(xls, startRow):
+    startRow = int(startRow)
     # 确保文件类型为 .xlsx
     data, ext = os.path.splitext(xls)
     if ext == ".xls":
@@ -305,7 +306,7 @@ def readSplitPntFromXLSX(xls):
         rowMax = sht.max_row
         # 有效数据从第三行开始
         oDict = {}
-        for i in range(3, rowMax + 1):
+        for i in range(startRow, rowMax + 1):
             dataDict = {}
             oId, oStart, oEnd, oDir = (sht.cell(i, 1).value, sht.cell(i, 2).value,
                                        sht.cell(i, 3).value, sht.cell(i, 4).value)
@@ -662,7 +663,6 @@ def insertPlyToDB(dbFile, xlsxData, plyCoord):
         plyGeoList, plyDir = eachPly["GEOMETRY"], eachPly["DIRECTION"]
         for eachSheet in xlsxData:
             shtName, shtData = eachSheet["NAME"], eachSheet["DATA"]
-            shtDirData = shtData[plyDir]
 
             # 每个sheet创建一张表，表名为 sheet名_方向
             tableName = shtName + "_" + plyDir
@@ -749,7 +749,9 @@ def createOrderdTable(dbFile, tableNameList):
 # ************************* 生成桩号点 *************************
 
 
-def readPntXlsx(xls):
+def readPntXlsx(xls, startRow, colTarList):
+    colId, colStart, colDir = colTarList
+
     # 确保文件类型为 .xlsx
     data, ext = os.path.splitext(xls)
     if ext == ".xls":
@@ -779,10 +781,11 @@ def readPntXlsx(xls):
         rowMax = sht.max_row
         # 有效数据从第三行开始
         oDict = {}
-        for i in range(3, rowMax + 1):
+        for i in range(startRow, rowMax + 1):
             dataDict = {}
-            oId, oStart, oDir = (sht.cell(i, 1).value, sht.cell(i, 6).value,
-                                       sht.cell(i, 5).value)
+
+            oId, oStart, oDir = (sht.cell(i, colId).value, sht.cell(i, colStart).value,
+                                       sht.cell(i, colDir).value)
             if oId is None or oStart is None or oDir is None:
                 continue
             oDict.setdefault(oDir, [])
@@ -912,7 +915,7 @@ def calXYInPntDB(dbFile, tarTableNameList):
     closeConnectDB(db, cur)
 
 
-def createPntFCWithDB(dbFile, tableName):
+def createPntFCWithDB(dbFile, tableName, outputPath):
     db, cur = openConnectDB(dbFile)
 
     # 筛选桩号点
@@ -923,34 +926,36 @@ def createPntFCWithDB(dbFile, tableName):
     resData = pd.read_sql(querySql, db)
     print(resData)
 
+    resData.to_csv(os.path.join(outputPath, tableName + ".txt"), index=False, encoding="utf-8")
+
 
 
 # ***********************************************************
 
 
 
-# inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\ditie\zhengxian.gdb\zhengxian"
-inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\简化后\jianhua.shp"
-upOrDownFieldName = "行别"
-xls = r"F:\工作项目\项目_上海申通\数据_cass打断线\地铁正线分段表序号.xlsx"
-wkt = 'PROJCS["shanghaicity",GEOGCS["GCS_Beijing_1954",DATUM["D_Beijing_1954",SPHEROID["Krasovsky_1940",6378245.0,298.3]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",-3457147.81],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",121.2751921],PARAMETER["Scale_Factor",1.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
-# wkt = r"‪C:\Users\lyce\Desktop\shanghaicity.prj"
-# dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main.db"
-dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main_pnt.db"
+# # inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\ditie\zhengxian.gdb\zhengxian"
+# inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\简化后\jianhua.shp"
+# upOrDownFieldName = "行别"
+# xls = r"F:\工作项目\项目_上海申通\数据_cass打断线\地铁正线分段表序号.xlsx"
+# wkt = 'PROJCS["shanghaicity",GEOGCS["GCS_Beijing_1954",DATUM["D_Beijing_1954",SPHEROID["Krasovsky_1940",6378245.0,298.3]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",-3457147.81],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",121.2751921],PARAMETER["Scale_Factor",1.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
+# # wkt = r"‪C:\Users\lyce\Desktop\shanghaicity.prj"
+# # dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main.db"
+# dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main_pnt.db"
 
 
 # =================== 共用组件 =======================
-
+#
 # # 从矢量数据中读取所有坐标点信息
 # plyCoord = getLineWKT(inFC, upOrDownFieldName)
-
-
+#
+#
 # # 从xlsx中读取数据 —— 读取 前四列，第三行开始的所有数据
 # xlsxData = readSplitPntFromXLSX(xls)
 #
 # print(plyCoord)
-
-
+#
+#
 # ==================================================
 
 
@@ -1005,34 +1010,49 @@ dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海�
 
 
 
-# =================== 生成桩号点 =======================
-# inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\ditie\zhengxian.gdb\zhengxian"
-inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\简化后\jianhua.shp"
+# =================== 生成桩号点 --- 输入数据 =======================
+
+# inFC = r"F:\工作项目\项目_上海申通\数据_cass打断线\简化后\jianhua.shp"
+inFC = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\检测数据\zhengxian_增密.shp"
 upOrDownFieldName = "行别"
-xls = r"F:\工作项目\项目_上海申通\数据_加点\新建文件夹\标志标牌表.xlsx"
+xls = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_输入数据\标志标牌修改.xlsx"
+dbFile = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\st_main_pnt_增密后.db"
+startRow = 3
+# 输入excel中id、里程值、上下行所在的列索引，从1开始
+colTarList = [1, 11, 5]
+outputPath = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据"
 
-# wkt = r"‪C:\Users\lyce\Desktop\shanghaicity.prj"
-# dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main.db"
-dbFile = r"D:\codeProjcet\ArcGISProPycharm\myScript\自用工具_github\上海申通业务\data\st_main_pnt.db"
+# =================== 生成桩号点 --- 输入数据 =======================
 
 
 
+# =================== 共用组件 =======================
+
+# 从矢量数据中读取所有坐标点信息
+plyCoord = getLineWKT(inFC, upOrDownFieldName)
+
+# ==================================================
 
 
-# xlsxPntData = readPntXlsx(xls)
-#
-# plyCoord = calculateMiles(plyCoord)
-#
-# insertPlyToDB(dbFile, xlsxPntData, plyCoord)
-#
-# tableNameList = insertPntXlsxToDB(dbFile, xlsxPntData, plyCoord)
-# print(tableNameList)
-#
-# newTableNameList = createOrderdPntTable(dbFile, tableNameList)
-# print(newTableNameList)
-#
-# calXYInPntDB(dbFile, newTableNameList)
 
-tableName = "PNT_上行_ORDERD"
-createPntFCWithDB(dbFile, tableName)
+# =================== 生成桩号点 =======================
+
+# 读取 xlsx 中点数据，并生成格式化的json
+xlsxPntData = readPntXlsx(xls, startRow, colTarList)
+
+plyCoord = calculateMiles(plyCoord)
+
+insertPlyToDB(dbFile, xlsxPntData, plyCoord)
+
+tableNameList = insertPntXlsxToDB(dbFile, xlsxPntData, plyCoord)
+print(tableNameList)
+
+newTableNameList = createOrderdPntTable(dbFile, tableNameList)
+print(newTableNameList)
+
+calXYInPntDB(dbFile, newTableNameList)
+
+# newTableNameList = {'Sheet1_上行_ORDERD', 'Sheet1_下行_ORDERD'}
+for tableName in newTableNameList:
+    createPntFCWithDB(dbFile, tableName, outputPath)
 # ===============================================

@@ -646,11 +646,24 @@ def _getDirectory(pntXlsx, plyObjList, plyTotalExtent):
 
     # "STYLE_TYPE" is the field within santong, sitong
     maxCol = sht.max_column
-    maxRow = sht.max_row
-    pntStyleIndex = pntFieldList.index("STYLE_TYPE") + 2
-    xCenIndex = pntFieldList.index("x_cen_") + 2
-    yCenIndex = pntFieldList.index("y_cen_") + 2
-    zCenIndex = pntFieldList.index("z_cen_") + 2
+    # maxRow = sht.max_row
+    for i in range(1, maxCol + 1):
+        fieldData = sht.cell(1, i).value
+
+        if fieldData == "TZD":
+            pntStyleIndex = i
+        if fieldData == "x_cen_":
+            xCenIndex = i
+        if fieldData == "y_cen_":
+            yCenIndex = i
+        if fieldData == "z_cen_":
+            zCenIndex = i
+
+
+    # pntStyleIndex = pntFieldList.index("TZD") + 2
+    # xCenIndex = pntFieldList.index("x_cen_") + 2
+    # yCenIndex = pntFieldList.index("y_cen_") + 2
+    # zCenIndex = pntFieldList.index("z_cen_") + 2
     # _addMessage("STYLE_TYPE")
     # _addMessage(pntStyleIndex)
     # _addMessage("x_cen_")
@@ -661,7 +674,7 @@ def _getDirectory(pntXlsx, plyObjList, plyTotalExtent):
     # _addMessage(zCenIndex)
 
 
-    if sht.cell(1, pntStyleIndex).value == "STYLE_TYPE":
+    if sht.cell(1, pntStyleIndex).value == "TZD":
 
         # set directory fields
         fieldTitle = ["z1_line_", "dir_1_", "gj_line1_", "roll_z_adjust1_", "roll_z_adjust1_y_",
@@ -678,10 +691,10 @@ def _getDirectory(pntXlsx, plyObjList, plyTotalExtent):
             if i == 1:
                 continue
 
-            pntType = eachRow[pntStyleIndex].value.strip()
+            # pntType = eachRow[pntStyleIndex].value.strip()
             x_cord = float(sht.cell(i, xCenIndex).value)
             y_cord = float(sht.cell(i, yCenIndex).value)
-            z_cord = float(sht.cell(i, zCenIndex).value)
+            # z_cord = float(sht.cell(i, zCenIndex).value)
 
             # whether the point is on the line
             for eachLineObj in plyObjList:
@@ -822,7 +835,7 @@ def copyPointsInXlsx(pntxlsx):
     z_origin = 0
     # get the field of santong, sitong
     for colNum in range(1, maxCol + 1):
-        if sht.cell(1, colNum).value == "STYLE_TYPE":
+        if sht.cell(1, colNum).value == "TZD":
             styleFiledIndex = colNum
         elif sht.cell(1, colNum).value == "dir_1_":
             dir_1_index = colNum
@@ -2267,8 +2280,8 @@ def createSymbolFile():
           },
           {
             "type" : "CIMFieldDescription",
-            "alias" : "STYLE_TYPE",
-            "fieldName" : "STYLE_TYPE",
+            "alias" : "TZD",
+            "fieldName" : "TZD",
             "numberFormat" : {
               "type" : "CIMNumericFormat",
               "alignmentOption" : "esriAlignRight",
