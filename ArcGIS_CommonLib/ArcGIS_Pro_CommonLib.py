@@ -566,10 +566,12 @@ def _copyFeature(inFC: str, outputPath: str, outputName: str) -> str:
     if folderType == "Workspace":
         if outputName[-4:] == ".shp":
             outputName = outputName[:-4]
+
     # .sde like directory
     elif folderType == "File":
         if outputName[-4:] == ".shp":
             outputName = outputName[:-4]
+
     else:
         if not outputName[-4:] == ".shp":
             outputName = outputName + ".shp"

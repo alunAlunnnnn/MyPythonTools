@@ -2,6 +2,7 @@ import arcpy
 import os
 import pandas as pd
 import functools
+import datetime
 
 """
 Author: ALun
@@ -12,6 +13,24 @@ Porject: SH.ShenTong Metro
 
 
 arcpy.env.overwriteOutput = True
+
+
+def getRunTime(func):
+    @functools.wraps(func)
+    def _wrapper(*args, **kwargs):
+        print(f"Method {func.__name__} start running ! ")
+        start = datetime.datetime.now()
+        res = func(*args, **kwargs)
+        stop = datetime.datetime.now()
+        cost = stop - start
+        print("*" * 30)
+        print(f"Method {func.__name__} start at {start}")
+        print(f"Method {func.__name__} finish at {stop}")
+        print(f"Method {func.__name__} total cost {cost}")
+        print("*" * 30)
+        return res
+
+    return _wrapper
 
 
 # 带参装饰器，用于将函数执行时的 arcgis 工作空间和函数外的工作空间隔离开来
@@ -44,39 +63,33 @@ def setTempWorkspace(workspace):
 
 
 # auto create a available name for feature classes
-def availableDataName(outputPath: str, outputName: str, addExtName: str = None) -> str:
+def availableDataName(outputPath: str, outputName: str) -> str:
     @setTempWorkspace(outputPath)
-    def _wrapper(outputPath: str, outputName: str, addExtName: str = None) -> str:
-
-        # 确定是否有传入 addExtName
-        if addExtName is None or addExtName == "":
-            addExtName = ""
-        else:
-            addExtName = "_" + addExtName
-
+    def _wrapper(outputPath: str, outputName: str) -> str:
         folderType = arcpy.Describe(outputPath).dataType
-        if folderType.lower() == "workspace":
+        if folderType == "Workspace":
             if outputName[-4:] == ".shp":
-                outputName = outputName[:-4] + addExtName
-            else:
-                outputName = outputName + addExtName
+                outputName = outputName[:-4]
         # .sde like directory
-        elif folderType.lower() == "file":
+        elif folderType == "File":
             if outputName[-4:] == ".shp":
-                outputName = outputName[:-4] + addExtName
-            else:
-                outputName = outputName + addExtName
-
+                outputName = outputName[:-4]
         else:
             if not outputName[-4:] == ".shp":
-                outputName = outputName + addExtName + ".shp"
-            else:
-                outputName = outputName[:-4] + addExtName + ".shp"
+                outputName = outputName + ".shp"
 
         return os.path.join(outputPath, outputName)
 
     res = _wrapper(outputPath, outputName)
     return res
+
+
+def _addField(infc, fieldName, fieldType):
+    try:
+        arcpy.AddField_management(infc, fieldName, fieldType)
+    except:
+        arcpy.DeleteField_management(infc, fieldName)
+        arcpy.AddField_management(infc, fieldName, fieldType)
 
 
 def _copyFeature(inFC: str, outputPath: str, outputName: str, addExtName: str="") -> str:
@@ -126,6 +139,7 @@ def _copyFeature(inFC: str, outputPath: str, outputName: str, addExtName: str=""
     return os.path.join(outputPath, outputName)
 
 
+@getRunTime
 def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeaderList):
     """
 
@@ -140,12 +154,15 @@ def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeader
     # 从excel中读取数据
     df = pd.read_excel(inExcelFile, header=headerRow, index=False)
     print(df)
-    # 迭代每一行，获取里程值和序号值
+
     rowDataDict = {}
     for row in df.iterrows():
         data = row[1]
+
+        # 获取方向值
         dataDir = data[dirHeaderName]
 
+        # 获取每行的
         rowDataList = []
         rowDataDict.setdefault(dataDir, [])
         for eachHeader in selectHeaderList:
@@ -155,35 +172,45 @@ def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeader
     return rowDataDict
 
 
-def createFeatureClass(outputPath, outputName, wkid=None, wkt=None):
-    if wkid:
-        sr = arcpy.SpatialReference(wkid)
-    elif wkt:
-        sr = arcpy.SpatialReference()
-        sr.loadFromString(wkt)
-    else:
-        sr = None
+def createFeatureClass(outputPath, outputName, createField, wkid=None, wkt=None):
+    if wkid or wkt:
+        if wkid:
+            sr = arcpy.SpatialReference(wkid)
+        else:
+            sr = arcpy.SpatialReference()
+            sr.loadFromString(wkt)
 
-    data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POINT", spatial_reference=sr)
-    arcpy.AddField_management(data, "GEOMILE", "DOUBLE")
-    arcpy.AddField_management(data, "ORI_OID", "LONG")
+        data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POINT", spatial_reference=sr)
+    else:
+        data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POINT")
+
+    for eachField in createField:
+        _addField(data, eachField[0], eachField[1])
 
     return os.path.join(outputPath, outputName)
 
 
-#
 def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, outputPath, outputName, wkid=None, wkt=None):
+    # 生成切分点
+    resSplitPnt = availableDataName(outputPath, outputName, "_split")
+    outputPathSplitPnt = os.path.dirname(resSplitPnt)
+    outputNameSplitPnt = os.path.basename(resSplitPnt)
+
+    # 生成属性连接点
+    resAttrPnt = availableDataName(outputPath, outputName, "_attr")
+    outputPathAttrPnt = os.path.dirname(resAttrPnt)
+    outputNameAttrPnt = os.path.basename(resAttrPnt)
+
     # 若输入 wkid 或 wkt 则根据其生成具有坐标系的数据，否则生成无坐标系要素类
-    resDataName = availableDataName(outputPath, outputName, "_split")
-    outputPathSplitPnt = os.path.dirname(resDataName)
-    outputNameSplitPnt = os.path.basename(resDataName)
-    
     if wkid:
         newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, wkid=wkid)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, wkid=wkid)
     elif wkt:
         newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, wkt=wkt)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, wkt=wkt)
     else:
         newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt)
 
     # 获取线要素的几何
     with arcpy.da.SearchCursor(lineFC, ["SHAPE@", lineFCDirFieldName]) as scur:
@@ -204,29 +231,33 @@ def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, out
                     # 插入几何、序号、里程值
                     icur.insertRow([milePntGeo, eachMile[0], eachMile[1]])
 
-    return resDataName
+    # 获取线要素的几何，并生成中间点，用以连接属性
+    with arcpy.da.SearchCursor(lineFC, ["SHAPE@", lineFCDirFieldName]) as scur:
+        with arcpy.da.InsertCursor(newAttrFC, ["SHAPE@", *newPntFieldName]) as icur:
+            for srow in scur:
+                # 获取线几何
+                lineGeo = srow[0]
+                # 获取线走向字段的值（上行/下行）
+                lineDir = srow[1]
+                print(lineDir)
+                # 获取上行/下行的标牌点
+                mileGenList = mileDataDict[lineDir]
+
+                for eachMile in mileGenList:
+                    # 按照里程值生成点几何
+                    milePntGeo = lineGeo.positionAlongLine(eachMile[1], False)
+
+                    # 插入几何、序号、里程值
+                    icur.insertRow([milePntGeo, eachMile[0], eachMile[1]])
+
+    # 返回两个数据路径，第一个切分点，第二个属性点
+    return resSplitPnt, resAttrPnt
 
 
-#
-def attrJoin(inFC, inXlsx, sheetName):
-    lyr = arcpy.MakeFeatureLayer_management(inFC, os.path.basename(inFC) + "_tmpLyr")
-
-    xlsxExt = os.path.splitext(inXlsx)[1]
-    if xlsxExt == ".xls" or xlsxExt == ".xlsx":
-        tView = arcpy.MakeTableView_management(inXlsx + "/" + sheetName + "$", os.path.basename(inXlsx).strip(xlsxExt) + "_tmpTV")
-
-    lyr = arcpy.AddJoin_management(lyr, "ORI_OID", tView, "序号")
 
 
-    fcBaseName = os.path.basename(inFC)
-    fcDir = os.path.dirname(inFC)
-    newLyr = _copyFeature(lyr, fcDir, fcBaseName, "new")
-    print(newLyr)
-    return newLyr
-
-
-data = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\数据_excel\标志标牌修改_20201201.xlsx"
-sheetName = "Sheet1"
+data = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\输入数据\地铁正线分段表序号.xlsx"
+sheetList = ["VERT_ID", "CUR_ID", "LOT_ID", "ACO_ID", "SLO_ID", "GUA_ID"]
 
 # excel中表头所在的行，表头之上的行会被全部忽略掉。 从 0 开始
 headerRow = 0
@@ -235,8 +266,10 @@ headerRow = 0
 dirHeaderName = "行别/股道"
 
 # 需要提取的值的表头名， 如 ["序号", "修正后里程值"]
-selectHeaderList = ["序号", "修正后里程值"]
-newPntFieldName = ["ORI_OID", "GEOMILE"]
+selectHeaderList = ["序号", "竖曲线起点里程", "竖曲线终点里程", "中间点里程"]
+newPntFieldName = ["ORI_OID", "SGEOMILE", "EGEOMILE", "MGEOMILE"]
+newPntFieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
+createField = zip(newPntFieldName, newPntFieldType)
 
 # 输入线要素类（可以有曲线）
 lineFC = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\检测数据\DATA.gdb\zhengxian_ori"
@@ -254,6 +287,3 @@ wkt = 'PROJCS["shanghaicity",GEOGCS["GCS_Beijing_1954",DATUM["D_Beijing_1954",SP
 
 mileDataDict = readMileFromExcel_Pandas(data, headerRow, dirHeaderName, selectHeaderList)
 
-pntFC = generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, outputPath, outputName, wkt=wkt)
-
-attrJoin(pntFC, data, sheetName)
