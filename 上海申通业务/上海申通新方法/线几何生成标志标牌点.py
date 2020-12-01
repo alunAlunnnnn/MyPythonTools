@@ -75,7 +75,7 @@ def availableDataName(outputPath: str, outputName: str, addExtName: str = None) 
 
         return os.path.join(outputPath, outputName)
 
-    res = _wrapper(outputPath, outputName)
+    res = _wrapper(outputPath, outputName, addExtName)
     return res
 
 
@@ -177,7 +177,7 @@ def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, out
     resDataName = availableDataName(outputPath, outputName, "_split")
     outputPathSplitPnt = os.path.dirname(resDataName)
     outputNameSplitPnt = os.path.basename(resDataName)
-    
+
     if wkid:
         newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, wkid=wkid)
     elif wkt:

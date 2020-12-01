@@ -11,7 +11,6 @@ Usage: Generate points in line, include polyline and arc
 Porject: SH.ShenTong Metro
 """
 
-
 arcpy.env.overwriteOutput = True
 
 
@@ -63,24 +62,38 @@ def setTempWorkspace(workspace):
 
 
 # auto create a available name for feature classes
-def availableDataName(outputPath: str, outputName: str) -> str:
+def availableDataName(outputPath: str, outputName: str, addExtName: str = None) -> str:
     @setTempWorkspace(outputPath)
-    def _wrapper(outputPath: str, outputName: str) -> str:
+    def _wrapper(outputPath: str, outputName: str, addExtName: str = None) -> str:
+
+        # 确定是否有传入 addExtName
+        if addExtName is None or addExtName == "":
+            addExtName = ""
+        else:
+            addExtName = "_" + addExtName
+
         folderType = arcpy.Describe(outputPath).dataType
-        if folderType == "Workspace":
+        if folderType.lower() == "workspace":
             if outputName[-4:] == ".shp":
-                outputName = outputName[:-4]
+                outputName = outputName[:-4] + addExtName
+            else:
+                outputName = outputName + addExtName
         # .sde like directory
-        elif folderType == "File":
+        elif folderType.lower() == "file":
             if outputName[-4:] == ".shp":
-                outputName = outputName[:-4]
+                outputName = outputName[:-4] + addExtName
+            else:
+                outputName = outputName + addExtName
+
         else:
             if not outputName[-4:] == ".shp":
-                outputName = outputName + ".shp"
+                outputName = outputName + addExtName + ".shp"
+            else:
+                outputName = outputName[:-4] + addExtName + ".shp"
 
         return os.path.join(outputPath, outputName)
 
-    res = _wrapper(outputPath, outputName)
+    res = _wrapper(outputPath, outputName, addExtName)
     return res
 
 
@@ -92,7 +105,7 @@ def _addField(infc, fieldName, fieldType):
         arcpy.AddField_management(infc, fieldName, fieldType)
 
 
-def _copyFeature(inFC: str, outputPath: str, outputName: str, addExtName: str="") -> str:
+def _copyFeature(inFC: str, outputPath: str, outputName: str, addExtName: str = "") -> str:
     oriEnvQFName = arcpy.env.qualifiedFieldNames
     arcpy.env.qualifiedFieldNames = False
 
@@ -140,7 +153,7 @@ def _copyFeature(inFC: str, outputPath: str, outputName: str, addExtName: str=""
 
 
 @getRunTime
-def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeaderList):
+def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeaderList, sheetName):
     """
 
     :param inExcelFile: str, 输入xls或xlsx文件路径
@@ -152,7 +165,7 @@ def readMileFromExcel_Pandas(inExcelFile, headerRow, dirHeaderName, selectHeader
     headerRow = int(headerRow)
 
     # 从excel中读取数据
-    df = pd.read_excel(inExcelFile, header=headerRow, index=False)
+    df = pd.read_excel(inExcelFile, header=headerRow, index=False, sheet_name=sheetName)
     print(df)
 
     rowDataDict = {}
@@ -184,13 +197,16 @@ def createFeatureClass(outputPath, outputName, createField, wkid=None, wkt=None)
     else:
         data = arcpy.CreateFeatureclass_management(outputPath, outputName, "POINT")
 
+    # 添加所需字段
     for eachField in createField:
         _addField(data, eachField[0], eachField[1])
 
     return os.path.join(outputPath, outputName)
 
 
-def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, outputPath, outputName, wkid=None, wkt=None):
+def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, outputPath, outputName, wkid=None,
+                  wkt=None):
+    global tempDataList, idIndex, startMileIndex, endMileIndex, midMileIndex, createFieldAttr, createFieldSplit
     # 生成切分点
     resSplitPnt = availableDataName(outputPath, outputName, "_split")
     outputPathSplitPnt = os.path.dirname(resSplitPnt)
@@ -203,14 +219,17 @@ def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, out
 
     # 若输入 wkid 或 wkt 则根据其生成具有坐标系的数据，否则生成无坐标系要素类
     if wkid:
-        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, wkid=wkid)
-        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, wkid=wkid)
+        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, createFieldSplit, wkid=wkid)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, createFieldAttr, wkid=wkid)
     elif wkt:
-        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, wkt=wkt)
-        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, wkt=wkt)
+        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, createFieldSplit, wkt=wkt)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, createFieldAttr, wkt=wkt)
     else:
-        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt)
-        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt)
+        newPntFC = createFeatureClass(outputPathSplitPnt, outputNameSplitPnt, createFieldSplit)
+        newAttrFC = createFeatureClass(outputPathAttrPnt, outputNameAttrPnt, createFieldAttr)
+
+    # 收集临时数据
+    tempDataList += [newPntFC, newAttrFC]
 
     # 获取线要素的几何
     with arcpy.da.SearchCursor(lineFC, ["SHAPE@", lineFCDirFieldName]) as scur:
@@ -225,13 +244,26 @@ def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, out
                 mileGenList = mileDataDict[lineDir]
 
                 for eachMile in mileGenList:
+                    # 插入起点里程值
+
                     # 按照里程值生成点几何
-                    milePntGeo = lineGeo.positionAlongLine(eachMile[1], False)
+                    milePntGeo = lineGeo.positionAlongLine(eachMile[startMileIndex], False)
 
                     # 插入几何、序号、里程值
-                    icur.insertRow([milePntGeo, eachMile[0], eachMile[1]])
+                    icur.insertRow([milePntGeo, eachMile[idIndex], eachMile[startMileIndex],
+                                    eachMile[endMileIndex], eachMile[midMileIndex]])
 
-    # 获取线要素的几何，并生成中间点，用以连接属性
+                    # 插入终点里程值
+                    # 按照里程值生成点几何
+                    milePntGeo = lineGeo.positionAlongLine(eachMile[endMileIndex], False)
+
+                    # 插入几何、序号、里程值
+                    icur.insertRow([milePntGeo, eachMile[idIndex], eachMile[startMileIndex],
+                                    eachMile[endMileIndex], eachMile[midMileIndex]])
+
+            del srow
+
+    # 按中间点里程值生成点，以便挂接属性
     with arcpy.da.SearchCursor(lineFC, ["SHAPE@", lineFCDirFieldName]) as scur:
         with arcpy.da.InsertCursor(newAttrFC, ["SHAPE@", *newPntFieldName]) as icur:
             for srow in scur:
@@ -245,14 +277,63 @@ def generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, out
 
                 for eachMile in mileGenList:
                     # 按照里程值生成点几何
-                    milePntGeo = lineGeo.positionAlongLine(eachMile[1], False)
+                    milePntGeo = lineGeo.positionAlongLine(eachMile[midMileIndex], False)
 
                     # 插入几何、序号、里程值
-                    icur.insertRow([milePntGeo, eachMile[0], eachMile[1]])
+                    icur.insertRow([milePntGeo, eachMile[idIndex], eachMile[startMileIndex],
+                                    eachMile[endMileIndex], eachMile[midMileIndex]])
 
     # 返回两个数据路径，第一个切分点，第二个属性点
     return resSplitPnt, resAttrPnt
 
+
+#
+def attrJoin(inFC, inXlsx, sheetName, extName, idFiledName):
+    global tempDataList
+    lyr = arcpy.MakeFeatureLayer_management(inFC, os.path.basename(inFC) + "_tmpLyr")
+
+    xlsxExt = os.path.splitext(inXlsx)[1]
+    if xlsxExt == ".xls" or xlsxExt == ".xlsx":
+        tView = arcpy.MakeTableView_management(inXlsx + "/" + sheetName + "$",
+                                               os.path.basename(inXlsx).strip(xlsxExt) + "_tmpTV")
+
+    lyr = arcpy.AddJoin_management(lyr, sheetName, tView, idFiledName)
+
+    fcBaseName = os.path.basename(inFC)
+    fcDir = os.path.dirname(inFC)
+    newLyr = _copyFeature(lyr, fcDir, fcBaseName, extName)
+
+    tempDataList.append(newLyr)
+
+    return newLyr
+
+
+def splitLine(inLineFC, inSplitPnt, inAttrPnt, outputPath, outputName, extName, tolerance):
+    global tempDataList
+    # 分割线
+    splitLine = availableDataName(outputPath, outputName, "_split_tmp")
+    splitLyr = arcpy.SplitLineAtPoint_management(inLineFC, inSplitPnt, splitLine, tolerance)
+
+    tempDataList.append(splitLine)
+
+    # 连接属性
+    resLine = availableDataName(outputPath, outputName, extName)
+    arcpy.SpatialJoin_analysis(splitLyr, inAttrPnt, resLine, search_radius=tolerance)
+    return resLine
+
+
+def clearTempData():
+    global tempDataList
+    try:
+        arcpy.Delete_management(tempDataList)
+    except:
+        for each in tempDataList:
+            try:
+                arcpy.Delete_management(each)
+            except:
+                pass
+    finally:
+        print("程序运行完成")
 
 
 
@@ -266,10 +347,16 @@ headerRow = 0
 dirHeaderName = "行别/股道"
 
 # 需要提取的值的表头名， 如 ["序号", "修正后里程值"]
-selectHeaderList = ["序号", "竖曲线起点里程", "竖曲线终点里程", "中间点里程"]
-newPntFieldName = ["ORI_OID", "SGEOMILE", "EGEOMILE", "MGEOMILE"]
-newPntFieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
-createField = zip(newPntFieldName, newPntFieldType)
+idFiledName = "序列"
+# selectHeaderList = ["序列", "实际起点里程", "实际终点里程", "实际中间点里程"]
+# newPntFieldName = ["ORI_OID", "SGEOMILE", "EGEOMILE", "MGEOMILE"]
+# newPntFieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
+
+# 起始里程在 newPntFieldName 列表中所处的索引
+idIndex = 0
+startMileIndex = 1
+endMileIndex = 2
+midMileIndex = 3
 
 # 输入线要素类（可以有曲线）
 lineFC = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\检测数据\DATA.gdb\zhengxian_ori"
@@ -278,12 +365,44 @@ lineFC = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_
 lineFCDirFieldName = "行别"
 
 # 输出数据的位置及数据名
-outputPath = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\标识标牌_20201201"
-outputName = "标志标牌点"
+outputPath = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\长短链修正后.gdb"
+# outputName = "打断线"
 
 # 坐标定义文本
 wkt = 'PROJCS["shanghaicity",GEOGCS["GCS_Beijing_1954",DATUM["D_Beijing_1954",SPHEROID["Krasovsky_1940",6378245.0,298.3]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",-3457147.81],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",121.2751921],PARAMETER["Scale_Factor",1.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
 
+# 搜索容差
+tolerance = 0.01
 
-mileDataDict = readMileFromExcel_Pandas(data, headerRow, dirHeaderName, selectHeaderList)
+# 删除临时数据
+tempDataList = []
 
+for sheetName in sheetList:
+    outputName = sheetName
+
+    selectHeaderList = ["序列", "实际起点里程", "实际终点里程", "实际中间点里程"]
+    newPntFieldName = [sheetName, "SGEOMILE", "EGEOMILE", "MGEOMILE"]
+    newPntFieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
+
+    extName = "_temp"
+    extNameFinal = ""
+
+    # 生成器
+    createFieldSplit = zip(newPntFieldName, newPntFieldType)
+    createFieldAttr = zip(newPntFieldName, newPntFieldType)
+
+    # 从 excel 读取数据，并格式化为 json
+    mileDataDict = readMileFromExcel_Pandas(data, headerRow, dirHeaderName, selectHeaderList, sheetName)
+
+    # 沿线生成分割点和属性连接点
+    splitPnt, attrPnt = generatePntFC(lineFC, lineFCDirFieldName, newPntFieldName, mileDataDict, outputPath, outputName,
+                                      wkt=wkt)
+
+    # 将excel属性挂接给属性连接点
+    inAttrPnt = attrJoin(attrPnt, data, sheetName, extName, idFiledName)
+
+    #
+    splitLine(lineFC, splitPnt, inAttrPnt, outputPath, outputName, extNameFinal, tolerance)
+
+
+clearTempData()
