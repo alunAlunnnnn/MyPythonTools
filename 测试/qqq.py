@@ -472,22 +472,17 @@ def splitTotalLine(inLineFC, splitPntList, singleLineList, outputPath, outputNam
     _copyFeature(joined, outputPath, outputName)
 
 
+# 输入数据 excel 文件
+data = r"D:\苟芳\数据\输入数据\excel\地铁正线分段表序号1208.xls"
 
-data = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\输入数据\new1207\地铁正线分段表序号12072.xls"
 sheetList = ["VERT_ID", "CUR_ID", "LOT_ID", "ACO_ID", "SLO_ID", "GUA_ID", "A_ID", "B_ID"]
-# sheetList = ["VERT_ID"]
 
 # excel中表头所在的行，表头之上的行会被全部忽略掉。 从 0 开始
 headerRow = 0
 
 # 方向字段的表头名
 dirHeaderName = "行别"
-
-# 需要提取的值的表头名， 如 ["序号", "修正后里程值"]
 idFiledName = "序列"
-# selectHeaderList = ["序列", "实际起点里程", "实际终点里程", "实际中间点里程"]
-# newPntFieldName = ["ORI_OID", "SGEOMILE", "EGEOMILE", "MGEOMILE"]
-# newPntFieldType = ["LONG", "DOUBLE", "DOUBLE", "DOUBLE"]
 
 # 起始里程在 newPntFieldName 列表中所处的索引
 idIndex = 0
@@ -497,15 +492,13 @@ endMileIndex = 3
 midMileIndex = 4
 
 # 输入线要素类（可以有曲线）
-lineFC = r"F:\工作项目\项目_上海申通\数据_加点新_20201130\处理_数据生成\数据_中间数据\检测数据\DATA.gdb\zhengxian_ori"
+lineFC = r"D:\苟芳\数据\输入数据\gdb\DATA.gdb\zhengxian_ori"
 
 # 线要素类中的 上下行字段名
 lineFCDirFieldName = "行别"
 
 # 输出数据的位置及数据名
-outputPath = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\正线打断1207.gdb"
-# outputPath = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\vertid.gdb"
-# outputName = "打断线"
+outputPath = r"D:\苟芳\数据\输出数据\随便1208.gdb"
 finalDataName = "全部打断测试"
 
 # 坐标定义文本
@@ -525,7 +518,7 @@ singleLineList = []
 for sheetName in sheetList:
     outputName = sheetName
 
-    # selectHeaderList = ["序列", "行别", "实际起点里程", "实际终点里程", "实际中间点里程"]
+    # selectHeaderList = ["序列", "行别", "起点里程", "终点里程", "中间点里程"]
     selectHeaderList = ["序列", "行别", "实际起点里程", "实际终点里程", "实际中间点里程"]
     newPntFieldName = [sheetName, "DIRECTORY", "SGEOMILE", "EGEOMILE", "MGEOMILE"]
     newPntFieldType = ["LONG", "TEXT", "DOUBLE", "DOUBLE", "DOUBLE"]
@@ -560,16 +553,3 @@ for sheetName in sheetList:
 splitTotalLine(lineFC, splitPntList, singleLineList, outputPath, finalDataName)
 
 clearTempData()
-
-
-# # 增加全分割后的配色字段
-
-# def fillSymbol(fieldDict):
-#     sym = ""
-#     for eachFieldName, eachFIeldValue in fieldDict.items():
-#         if eachFIeldValue is not None:
-#             sym = sym + eachFieldName[:3] + "_"
-#     return sym[:-1]
-#
-# fillSymbol({"GUA_ID": !GUA_ID!, "SLO_ID": !SLO_ID!, "ACO_ID": !ACO_ID!, "LOT_ID": !LOT_ID!, "CUR_ID": !CUR_ID!, "VERT_ID": !VERT_ID!})
-# {"GUA_ID": !GUA_ID!, "SLO_ID": !SLO_ID!, "ACO_ID": !ACO_ID!, "LOT_ID": !LOT_ID!, "CUR_ID": !CUR_ID!, "VERT_ID": !VERT_ID!}

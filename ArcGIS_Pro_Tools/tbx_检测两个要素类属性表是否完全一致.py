@@ -74,9 +74,13 @@ def FCFieldValueMatchCheck(src, dst):
     return dstDict
 
 
-src = arcpy.GetParameterAsText(0)
-dst = arcpy.GetParameterAsText(1)
-outLog = arcpy.GetParameterAsText(2)
+# src = arcpy.GetParameterAsText(0)
+# dst = arcpy.GetParameterAsText(1)
+# outLog = arcpy.GetParameterAsText(2)
+
+src = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\正线打断1207.gdb\全部打断测试"
+dst = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\随便1207.gdb\全部打断测试"
+outLog = r"F:\工作项目\项目_上海申通\数据_excel打断线_20201201\中间数据\表比较\比较.txt"
 try:
     res = FCFieldValueMatchCheck(src, dst)
 
