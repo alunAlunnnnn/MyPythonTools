@@ -1,0 +1,1 @@
+./startMonitor_hs.sh > /home/alun/MyProjects/python36_sysStatus/py3sysStatus/myCodes/log/runlog.txt &

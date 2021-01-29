@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="zh"><Esri><CreaDate>20201227</CreaDate><CreaTime>22220800</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="d:\softs\soft\gis\arcgispro26\Resources\ArcToolbox\toolboxes\Conversion Tools.tbx\PolygonToRaster" Date="20201227" Time="222208">PolygonToRaster F:\工作项目\项目_温州超图\研发_DEM挖坑\测试_大数据量压平DEM\数据_拆分缓冲面\shpSplit_2.shp FID split\MainThread\ras_43 "Cell center" NONE 0.00034 BUILD</Process></lineage></DataProperties></Esri></metadata>
